@@ -130,9 +130,9 @@ def readWavFiles(filename):
     N = wf.getnframes()
     x = np.empty(N)
     for i in range(N):
-        xTmp = wf.readframes(1)
-        x[i] = np.array([struct.unpack('<h', xTmp)])
-        
+        xTmp = np.array(struct.unpack('<h', wf.readframes(1)))
+        x[i] = xTmp[0]
+
     wf.close()
     
     # scale data to float
