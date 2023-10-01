@@ -141,4 +141,27 @@ def readWavFiles(filename):
     
     return y
         
-    
+if __name__ == "__main__":
+
+    from matplotlib import pyplot as plt
+
+    # create a signal
+    fs = 10000
+    [x,t] = createToneSig(1.0, 100, 1024, fs)
+
+    # write a wav file
+    writeWavFile(x, 'data/tone.wav', 1, 16, fs)
+
+    # reads a wav file
+    y = readWavFiles('data/tone.wav')
+
+    # error
+    print("data error = %.4f" % (np.sum(y-x)))
+
+    # plotting
+    plt.plot(t,x, label='input')
+    plt.plot(t,y, label='output')
+    plt.grid()
+    plt.legend(loc='upper right')
+
+    plt.show() 
