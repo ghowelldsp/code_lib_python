@@ -6,6 +6,7 @@ Created on Thu Sep 28 19:06:48 2023
 @author: ghowell
 """
 
+import numpy as np
 import warnings
 
 def floatToFixed(fVal, fracLen, wordLen, signed):
@@ -37,24 +38,25 @@ def floatToFixed(fVal, fracLen, wordLen, signed):
     
     # fraction value
     fracVal = 2**(-fracLen)
-    
+
     # saturate
-    if (fVal > fMax):
-        warnings.warn("float value %f saturated, max float value is %f" % (fVal, fMax))      
-        fVal = fMax
-    elif (fVal < fMin):
-        warnings.warn("float value %f saturated, min float value is %f" % (fVal, fMin)) 
-        fVal = fMin
-    elif (fVal < fracVal and fVal > -fracVal and signed):
-        warnings.warn("float value %f saturated, min float value is %f" % (fVal, fMin)) 
-        fVal = 0
+    fVal = np.array(fVal)
+    if (fVal > fMax).any():
+        warnings.warn("positive overflow occured, max float value is %f" % fMax)
+        fVal[np.where(fVal > fMax)] = fMax
+    elif (fVal < fMin).any():
+        warnings.warn("negative overflow occured, min float value is %f" % fMin)
+        fVal[np.where(fVal < fMin)] = fMin
+    elif ((fVal < np.abs(fracVal)).any() and signed):
+        warnings.warn("underflow occured, min fractional float value is %f" % fracVal)
         
     # calculate fixed point value
-    fpVal = int(fVal * 2**fracLen)
+    fpVal = fVal * 2**fracLen
+    fpVal = np.array(fpVal, dtype=int)
     
     return fpVal, fMin, fMax, fracVal
 
-def fixedToFloat(fVal, fracLen):
+def fixedToFloat(fpVal, fracLen):
     """
     converts a fixed point number to a floating point number
     
