@@ -19,7 +19,10 @@ def createToneSig(amp, f, N, fs):
     
     :return x: tone signal
     :return t: time vector
-    """  
+    """
+
+    x = np.zeros([N,1])
+    t = np.zeros([N,1])
     
     # create time vector
     t = np.arange(0,N) * (1/fs)
