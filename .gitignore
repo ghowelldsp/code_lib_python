@@ -1,6 +1,13 @@
+# General
 *.DS_Store
 
+# Project
 .vscode
 data/
 venv/
 __pycache__
+
+# Package Build
+build/
+*.egg-info
+dist/
