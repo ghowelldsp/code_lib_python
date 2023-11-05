@@ -1,5 +1,13 @@
 # Code Lib Python
 
+## Install Library
+
+The following command creates a virtual environment, activates it, then install all the required dependency libraries.
+
+``` python
+python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+```
+
 ## Enable Virtual Environment
 
 Enter the virtual environment with
