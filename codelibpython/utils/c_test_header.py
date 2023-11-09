@@ -6,6 +6,7 @@
 
 import numpy as np
 import re
+import os
 import warnings
 
 def addMacro(name, value):
@@ -30,7 +31,7 @@ def addMacro(name, value):
     
     return mout
 
-def addVariables(name, data, rowName, colName, maxLineWidth):
+def addVariables(name, data, rowName, colName):
     
     # create empty variable and macro lists
     vout = []
@@ -60,7 +61,7 @@ def addVariables(name, data, rowName, colName, maxLineWidth):
         vout.append(defLine + '{')
         
         # write row of data
-        dataLine = np.array2string(data, max_line_width=maxLineWidth, precision=23, separator=', ')
+        dataLine = np.array2string(data, max_line_width=120, precision=23, separator=', ')
         dataLine = re.sub(r"\n", "\n   ", dataLine)
         vout.append('    ' + dataLine[1:-1])
         vout.append('    };\n')
@@ -79,7 +80,7 @@ def addVariables(name, data, rowName, colName, maxLineWidth):
         
         # write row of data
         for i in range(nrows):
-            dataLine = np.array2string(data[i,:], max_line_width=maxLineWidth, precision=23, separator=', ')
+            dataLine = np.array2string(data[i,:], max_line_width=120, precision=23, separator=', ')
             dataLine = re.sub(r"\n", "\n    ", dataLine)
             if (i != nrows-1):
                 vout.append('    {' + dataLine[1:-1] + '},')
@@ -92,7 +93,7 @@ def addVariables(name, data, rowName, colName, maxLineWidth):
         
     return vout, mout
     
-def createCTestHeader(file, macros, variables, maxLineWidth):  
+def createCTestHeader(file, macros, variables):  
     
     # create header data lists
     hout = []
@@ -101,7 +102,7 @@ def createCTestHeader(file, macros, variables, maxLineWidth):
     
     # create variable list
     for variable in variables:
-        voutVar, moutVar = addVariables(variable[0], variable[1], variable[2], variable[3], maxLineWidth)
+        voutVar, moutVar = addVariables(variable[0], variable[1], variable[2], variable[3])
         for line in voutVar:
             vout.append(line)
         for line in moutVar:
@@ -116,35 +117,36 @@ def createCTestHeader(file, macros, variables, maxLineWidth):
     mout = list(dict.fromkeys(mout))
     
     # add info
-    hout.append('/' + '*' * (maxLineWidth-2))
+    hout.append('/***********************************************************************************************************************')
     hout.append(' *')
-    hout.append(' * C Test Header')
+    hout.append(f' * @file    {os.path.basename(file)}')
+    hout.append('')
+    hout.append(' * @brief   Test Variables')
+    hout.append('')
+    hout.append(' * @par')
+    hout.append(' * @author  G. Howell')
     hout.append(' *')
-    hout.append(' ' + '*' * (maxLineWidth-3) + '/\n')
+    hout.append(' **********************************************************************************************************************/')
     
     # add includes
-    title = 'INCLUDES'
-    hout.append('/** ' + title + ' ' + '*' * (maxLineWidth - 7 - len(title)) + '/\n')
+    hout.append('/*------------------------------------------- INCLUDES ---------------------------------------------------------------*/')
     hout.append('#include <stdint.h>')
     hout.append('')
     
     # add macros
-    title = 'MACROS'
-    hout.append('/** ' + title + ' ' + '*' * (maxLineWidth - 7 - len(title)) + '/\n')
+    hout.append('/*------------------------------------------- MACROS AND DEFINES -----------------------------------------------------*/')
     for line in mout:
         hout.append(line)
     hout.append('')
     
     # add typedefs
-    title = 'TYPEDEFS'
-    hout.append('/** ' + title + ' ' + '*' * (maxLineWidth - 7 - len(title)) + '/\n')
+    hout.append('/*------------------------------------------- TYPEDEFS ---------------------------------------------------------------*/')
     hout.append('typedef float float32_t;')
     hout.append('typedef double float64_t;')
     hout.append('')
     
     # add variables
-    title = 'VARIABLES'
-    hout.append('/** ' + title + ' ' + '*' * (maxLineWidth - 7 - len(title)) + '/\n')
+    hout.append('/*------------------------------------------- EXPORTED VARIABLES -----------------------------------------------------*/')
     for line in vout:
         hout.append(line)
     hout.append('')
@@ -155,8 +157,6 @@ def createCTestHeader(file, macros, variables, maxLineWidth):
         f.write(hout)
 
 if __name__ == "__main__":
-    
-    maxLineWidth = 120  
     
     print('C Test Header Started')
     
@@ -185,7 +185,7 @@ if __name__ == "__main__":
     
     print('... creating header')
     
-    createCTestHeader('./data/header.h', macros, variables, maxLineWidth)
+    createCTestHeader('./data/header.h', macros, variables)
     
     print('C Test Header Finished')
         
