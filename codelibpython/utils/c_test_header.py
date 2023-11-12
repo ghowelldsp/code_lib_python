@@ -31,120 +31,226 @@ def addMacro(name, value):
     
     return mout
 
+def addVariables1d(vout, mout, name, data, dataType, xName):
+    
+    # length of dimensions
+    xLen = data.size
+    
+    # create row macros definitions
+    mout.append(addMacro(xName, xLen))
+    
+    # create empty dout matricies
+    if (name == 'doutRef'):
+        for i in range(ndepth):
+            vout.append(f'{dataType} dout[{xName}] = ' + '{0};\n')
+    
+    # write definition line
+    vout.append(f'{dataType} {name}[{xName}] =')
+    vout.append('{')
+    
+    # write row of data
+    dataLine = np.array2string(data, max_line_width=120, precision=23, separator=', ')
+    dataLine = re.sub(r"\n", "\n   ", dataLine)
+    vout.append('    ' + dataLine[1:-1])
+    vout.append('};\n')
+
+def addVariables2d(vout, mout, name, data, dataType, xName, yName):
+    
+    # create name with first letter capitalised
+    cname = f'{name[0].capitalize()}{name[1:]}'
+    
+    # length of dimensions
+    xLen, yLen = data.shape
+        
+    # create row and column macros definitions
+    mout.append(addMacro(xName, xLen))
+    mout.append(addMacro(yName, yLen))
+    
+    # write definition line
+    vout.append(f'{dataType} {name}[{xName}][{yName}] =')
+    vout.append('{')
+    
+    # write row of data
+    for i in range(xLen):
+        vout.append('    {')
+        dataLine = np.array2string(data[i,:], max_line_width=120, precision=23, separator=', ')
+        dataLine = re.sub(r"\n", "\n    ", dataLine)
+        vout.append('        ' + dataLine[1:-1])
+        if (i < xLen-1):
+            vout.append('    },')
+        else:
+            vout.append('    }')
+    vout.append('};\n')
+    
+    # create pointer to pointer matricies
+    vout.append(f'{dataType} *pp{cname}[{xName}] =')
+    vout.append('{')
+    for i in range(xLen):
+        line = f'    {name}[{i}]'
+        if (i < xLen-1):
+            vout.append(line + ',')
+        else:
+            vout.append(line)
+    vout.append('};\n')
+    
+    # if the variable is data out reference create dout variables
+    if (name == 'doutRef'):
+        
+        # create empty 2d matrix
+        vout.append(f'{dataType} dout[{xName}][{yName}] = ' + '{0};\n')
+        
+        # create pointer to pointer matrix
+        vout.append(f'{dataType} *ppDout[{xName}] =')
+        vout.append('{')
+        for i in range(xLen):
+            line = f'    dout[{i}]'
+            if (i < xLen-1):
+                vout.append(line + ',')
+            else:
+                vout.append(line)
+        vout.append('};\n')
+    
+    # create structure
+    vout.append(f'{name}_t s{cname} =')
+    vout.append('{')
+    vout.append(f'    .p{cname} = {name}[0],')
+    if (name == 'doutRef'):
+        vout.append(f'    .pp{cname} = pp{cname},')
+        vout.append(f'    .pDout = dout[0],')
+        vout.append(f'    .ppDout = ppDout')
+    else:
+        vout.append(f'    .pp{cname} = pp{cname}')
+    vout.append('};\n')
+
+def addVariables3d(vout, mout, name, data, dataType, xName, yName, zName):
+    
+    # create name with first letter capitalised
+    cname = f'{name[0].capitalize()}{name[1:]}'
+    
+    # length of dimensions
+    xLen, yLen, zLen = data.shape
+        
+    # create row and column macros definitions
+    mout.append(addMacro(xName, xLen))
+    mout.append(addMacro(yName, yLen))
+    mout.append(addMacro(zName, zLen))
+    
+    # create data matricies
+    for i in range(zLen):
+        
+        # write definition line
+        vout.append(f'{dataType} {name}_{i}[{xName}][{yName}] =')
+        vout.append('{')
+        # write row of data
+        for j in range(xLen):
+            vout.append('    {')
+            dataLine = np.array2string(data[j,:,i], max_line_width=120, precision=23, separator=', ')
+            dataLine = re.sub(r"\n", "\n    ", dataLine)
+            vout.append('        ' + dataLine[1:-1])
+            if (j < xLen-1):
+                vout.append('    },')
+            else:
+                vout.append('    }')
+        vout.append('};\n')
+         
+        # create pointer to pointer matricies
+        vout.append(f'{dataType} *pp{cname}_{i}[{xName}] = ')
+        vout.append('{')
+        for j in range(xLen):
+            line = f'    {name}_{i}[{j}]'
+            if (j < xLen-1):
+                vout.append(line + ',')
+            else:
+                vout.append(line)
+        vout.append('};\n')
+            
+    # if the variable is data out reference create dout variables
+    if (name == 'doutRef'):
+        for i in range(zLen):
+        
+            # create empty 2d matrix
+            vout.append(f'{dataType} dout_{i}[{xName}][{yName}] = ' + '{0};\n')
+        
+            # create pointer to pointer matrix
+            vout.append(f'{dataType} *ppDout_{i}[{xName}] =')
+            vout.append('{')
+            for j in range(xLen):
+                line = f'    dout_{i}[{j}]'
+                if (j < xLen-1):
+                    vout.append(line + ',')
+                else:
+                    vout.append(line)
+            vout.append('};\n')
+            
+    # create structure
+    vout.append(f'{name}_t s{cname}[{zName}] =')
+    vout.append('{')
+    for i in range(zLen):
+        vout.append('    {')
+        vout.append(f'        .p{cname} = {name}_{i}[0],')
+        if (name == 'doutRef'):
+            vout.append(f'        .pp{cname} = pp{cname}_{i},')
+            vout.append(f'        .pDout = dout_{i}[0],')
+            vout.append(f'        .ppDout = ppDout_{i}')
+        else:
+            vout.append(f'        .pp{cname} = pp{cname}_{i}')
+        if (i < zLen-1):
+            vout.append('    },')
+        else:
+            vout.append('    }')
+    vout.append('};\n')
+
 def addVariables(name, data, dimNames):
     
     # create empty variable and macro lists
     vout = []
     mout = []
+    tout = []
     
     # unsupported datatypes list
     unsupportedDataTypes = ['complex128', 'complex256']
     
-    # get arraya specs
-    datatype = data.dtype
+    # get array specs
+    dataType = f'{data.dtype}_t'
     dataDim = data.ndim
     
     # check for unsupported datatypes
-    if datatype in unsupportedDataTypes:
-        warnings.warn(f'variable {name} with type {datatype} is not a supported data type')
+    if dataType in unsupportedDataTypes:
+        warnings.warn(f'variable {name} with type {dataType} is not a supported data type')
+        
+    vout.append(f'/** {name} */')
+    
+    # create name with first letter capitalised
+    cname = f'{name[0].capitalize()}{name[1:]}'
     
     # write array or matrix
     if (dataDim == 1):
+        # create 1d variables
+        addVariables1d(vout, mout, name, data, dataType, dimNames[0])
         
-        nrows = data.size
-        
-        # create row macros definitions
-        mout.append(addMacro(dimNames[0], nrows))
-        
-        # create empty dout matricies
+    elif (dataDim > 1):
+        # create typedef structure
+        tout.append(f'typedef struct {name}_t')
+        tout.append('{')
+        tout.append(f'    {dataType} *p{cname};')
+        tout.append(f'    {dataType} **pp{cname};')
         if (name == 'doutRef'):
-            for i in range(ndepth):
-                vout.append(f'{datatype}_t dout[{dimNames[0]}] = ' + '{0};\n')
-        
-        # write definition line
-        defLine = f'{datatype}_t {name}[{dimNames[0]}] = '
-        vout.append(defLine + '{')
-        
-        # write row of data
-        dataLine = np.array2string(data, max_line_width=120, precision=23, separator=', ')
-        dataLine = re.sub(r"\n", "\n   ", dataLine)
-        vout.append('    ' + dataLine[1:-1] + '};\n')
-        
-    elif (dataDim == 2):
-               
-        nrows, ncols = data.shape
-        
-        # create row and column macros definitions
-        mout.append(addMacro(dimNames[0], nrows))
-        mout.append(addMacro(dimNames[1], ncols))
-        
-        # create empty dout matricies
-        if (name == 'doutRef'):
-            for i in range(ndepth):
-                vout.append(f'{datatype}_t dout[{dimNames[0]}][{dimNames[1]}] = ' + '{0};\n')
-        
-        # write definition line
-        vout.append(f'{datatype}_t {name}[{dimNames[0]}][{dimNames[1]}] = ' + '{')
-        
-        # write row of data
-        for i in range(nrows):
-            dataLine = np.array2string(data[i,:], max_line_width=120, precision=23, separator=', ')
-            dataLine = re.sub(r"\n", "\n    ", dataLine)
-            if (i != nrows-1):
-                vout.append('    {' + dataLine[1:-1] + '},')
-            else:
-                vout.append('    {' + dataLine[1:-1] + '} };\n')
-                
-    elif (dataDim == 3):
-           
-        nrows, ncols, ndepth = data.shape
-        
-        # create row and column macros definitions
-        mout.append(addMacro(dimNames[0], nrows))
-        mout.append(addMacro(dimNames[1], ncols))
-        mout.append(addMacro(dimNames[2], ndepth))
-        
-        # create empty dout matricies
-        if (name == 'doutRef'):
+            tout.append(f'    {dataType} *pDout;')
+            tout.append(f'    {dataType} **ppDout;')
+        tout.append('}' + f' {name}_t;\n')
+
+        if (dataDim == 2):
+            # create 2d variables
+            addVariables2d(vout, mout, name, data, dataType, dimNames[0], dimNames[1])
             
-            # create empty buffers
-            for i in range(ndepth):
-                vout.append(f'{datatype}_t dout_{i}[{dimNames[0]}][{dimNames[1]}] = ' + '{0};\n')
-            
-            # create pointer array to 2d buffers
-            vout.append(f'{datatype}_t *dout[{dimNames[2]}] = ' + '{')
-            for i in range(ndepth):
-                if (i < ndepth-1):
-                    vout.append(f'    dout_{i}[0],')
-                else:
-                    vout.append(f'    dout_{i}[0]' + ' };\n')
+        elif (dataDim == 3):
+            # create 3d variables
+            addVariables3d(vout, mout, name, data, dataType, dimNames[0], dimNames[1], dimNames[2])
         
-        for i in range(ndepth):
-            
-            # write definition line
-            vout.append(f'{datatype}_t {name}_{i}[{dimNames[0]}][{dimNames[1]}] = ' + '{')
-            
-            # write row of data
-            for j in range(nrows):
-                dataLine = np.array2string(data[j,:,i], max_line_width=120, precision=23, separator=', ')
-                dataLine = re.sub(r"\n", "\n    ", dataLine)
-                if (j != nrows-1):
-                    vout.append('    {' + dataLine[1:-1] + '},')
-                else:
-                    vout.append('    {' + dataLine[1:-1] + '} };\n')
-                    
-        # create pointer array to 2d buffers
-        vout.append(f'{datatype}_t *{name}[{dimNames[2]}] = ' + '{')
-        for i in range(ndepth):
-            if (i < ndepth-1):
-                vout.append(f'    {name}_{i}[0],')
-            else:
-                vout.append(f'    {name}_{i}[0]' + ' };\n')
-           
-    else:
-        warnings.warn(f'variable {name} has {dataDim} is not a supported number of dimensions, max dimensions = 3')
-        
-    return vout, mout
+        else:
+            warnings.warn(f'variable {name} has {dataDim} is not a supported number of dimensions, max dimensions = 3')
+             
+    return vout, mout, tout
     
 def createCTestHeader(file, macros, variables):  
     
@@ -152,15 +258,18 @@ def createCTestHeader(file, macros, variables):
     hout = []
     mout = []
     vout = []
+    tout = []
     
     # create variable list
     for variable in variables:
         
-        voutVar, moutVar = addVariables(variable[0], variable[1], variable[2:len(variable)])
+        voutVar, moutVar, toutVar = addVariables(variable[0], variable[1], variable[2:len(variable)])
         for line in voutVar:
             vout.append(line)
         for line in moutVar:
             mout.append(line[0])
+        for line in toutVar:
+            tout.append(line)
     
     # create macro list
     for macro in macros:
@@ -202,6 +311,9 @@ def createCTestHeader(file, macros, variables):
     hout.append('typedef float float32_t;')
     hout.append('typedef double float64_t;')
     hout.append('')
+    for line in tout:
+        hout.append(line)
+    hout.append('')
     
     # add variables
     hout.append('/*------------------------------------------- EXPORTED VARIABLES -----------------------------------------------------*/')
@@ -231,18 +343,26 @@ if __name__ == "__main__":
     
     print('... creating variables')
     
-    arrayf32 = np.array([1.2453, 5.7, 9.3], dtype=np.float32)
-    matrixf32 = np.array([[1.2, 5.7, 9.3],[1.2, 5.7, 9.3]], dtype=np.float32)
-    matrixi32 = np.array([[1, 5, 9],[1, 5, 9]], dtype=np.int32)
-    matrix3df32 = np.random.randn(4, 3, 2).astype(np.float32)
-    matrixf64 = np.random.rand(100, 100)
+    # 1d data
+    data_1d_f32 = np.array([1.2453, 5.7, 9.3], dtype=np.float32)
+    data_1d_i32 = np.array([1, 5, 9], dtype=np.int32)
+    data_long_1d_f32 = np.random.randn(20).astype(np.float32)
     
-    variables = [['arrayf32', arrayf32, 'N'], 
-                 ['matrixf32_1', matrixf32, 'N_CHANNELS_MATRIX', 'N'],
-                 ['matrixf32_2', matrixf32, 'N_CHANNELS_MATRIX', 'N'],
-                 ['matrixi32', matrixi32, 'N_CHANNELS_MATRIX', 'N'],
-                 ['doutRef', matrix3df32, 'N_CHANNELS_MATRIX', 'N', 'N_BANDS'],
-                 ['matrixf64', matrixf64, 'N_CHANNELS_RAND', 'N_CHANNELS_RAND']]
+    # 2d data
+    data_2d_f32 = np.array([[1.2, 5.7, 9.3],[5.3, 8.8, 2.4]], dtype=np.float32)
+    
+    # 3d data
+    data_3d_f32 = np.random.randn(4, 3, 2).astype(np.float32)
+    data_long_3d_f32 = np.random.randn(5, 50, 3).astype(np.float32)
+    
+    variables = [['data_1d_f32', data_1d_f32, 'N'], 
+                 ['data_1d_i32', data_1d_i32, 'N'],
+                 ['data_long_1d_f32', data_long_1d_f32, 'N'],
+                 ['data_2d_f32', data_2d_f32, 'N_CHANNELS_MATRIX', 'N'],
+                 ['doutRef', data_2d_f32, 'N_CHANNELS_MATRIX', 'N'],
+                 ['data_3d_f32', data_3d_f32, 'N_CHANNELS_MATRIX', 'N', 'N_BANDS'],
+                 ['doutRef', data_3d_f32, 'N_CHANNELS_MATRIX', 'N', 'N_BANDS'],
+                 ['data_long_3d_f32', data_long_3d_f32, 'N_X', 'N_Y', 'N_Z']]
     
     print('... creating header')
     
