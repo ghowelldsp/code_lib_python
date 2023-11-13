@@ -25,7 +25,10 @@ def writeDataLine(data, vout, nDim):
     
     # write blocks of data
     for i in range(nBlocks):
-        dataLine = np.array2string(data[maxLen*i:maxLen*(i+1)], max_line_width=116, precision=23, separator=', ')
+        dataLine = np.array2string(data[maxLen*i:maxLen*(i+1)], 
+                                   max_line_width=116, 
+                                   formatter={'float_kind':'{:.21}'.format},
+                                   separator=', ')
         dataLine = re.sub(r"\n", "\n   ", dataLine)
         dataLine = spaceOffset + dataLine[1:-1]
         if ((i == nBlocks-1) and (nRemain == 0)):
@@ -35,7 +38,10 @@ def writeDataLine(data, vout, nDim):
     
     # write remaining data elements
     if (nRemain):
-        dataLine = np.array2string(data[-nRemain:], max_line_width=116, precision=23, separator=', ')
+        dataLine = np.array2string(data[-nRemain:], 
+                                   max_line_width=116, 
+                                   formatter={'float_kind':'{:.21}'.format}, 
+                                   separator=', ')
         dataLine = re.sub(r"\n", "\n   ", dataLine)
         vout.append(spaceOffset + dataLine[1:-1])
 
@@ -368,6 +374,7 @@ if __name__ == "__main__":
     # 1d data
     data_1d_f32 = np.array([1.2453, 5.7, 9.3], dtype=np.float32)
     data_1d_i32 = np.array([1, 5, 9], dtype=np.int32)
+    data_long_1d_i32 = np.random.randn(3000).astype(np.int32)
     data_long_1d_f32 = np.random.randn(3000).astype(np.float32)
     
     # 2d data
@@ -379,6 +386,7 @@ if __name__ == "__main__":
     
     variables = [['data_1d_f32', data_1d_f32, 'N'], 
                  ['data_1d_i32', data_1d_i32, 'N'],
+                 ['data_long_1d_i32', data_long_1d_i32, 'N'],
                  ['data_long_1d_f32', data_long_1d_f32, 'N'],
                  ['data_2d_f32', data_2d_f32, 'N_CHANNELS_MATRIX', 'N'],
                  ['doutRef', data_2d_f32, 'N_CHANNELS_MATRIX', 'N'],
