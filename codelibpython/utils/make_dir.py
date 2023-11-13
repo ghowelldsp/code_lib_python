@@ -24,7 +24,7 @@ def makeDirectories(fpath):
     curPath = ''
     for sdir in sdirs:
         curPath += sdir + '/'
-        if sdir == '.':
+        if (sdir == '.') or (sdir == '..'):
             continue
         isExist = os.path.exists(curPath)
         if (not isExist):
