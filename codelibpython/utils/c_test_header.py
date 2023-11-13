@@ -9,6 +9,36 @@ import re
 import os
 import warnings
 
+def writeDataLine(data, vout, nDim):
+        
+    # split the data into block with a max length of 1000 as array2string doesn't handle large arrays
+    maxLen = 1000
+    nBlocks = int(len(data)/maxLen)
+    nRemain = len(data) % maxLen
+    
+    # make the space offset larger for arrays that have greater than 1 dimesion to account for the inner 
+    # curly braces
+    if (nDim > 1):
+        spaceOffset = ' ' * 8
+    else:
+        spaceOffset = ' ' * 4
+    
+    # write blocks of data
+    for i in range(nBlocks):
+        dataLine = np.array2string(data[maxLen*i:maxLen*(i+1)], max_line_width=116, precision=23, separator=', ')
+        dataLine = re.sub(r"\n", "\n   ", dataLine)
+        dataLine = spaceOffset + dataLine[1:-1]
+        if ((i == nBlocks-1) and (nRemain == 0)):
+            vout.append(dataLine)
+        else:
+            vout.append(dataLine + ',')
+    
+    # write remaining data elements
+    if (nRemain):
+        dataLine = np.array2string(data[-nRemain:], max_line_width=116, precision=23, separator=', ')
+        dataLine = re.sub(r"\n", "\n   ", dataLine)
+        vout.append(spaceOffset + dataLine[1:-1])
+
 def addMacro(name, value):
     
     # create empty macro lists
@@ -46,12 +76,8 @@ def addVariables1d(vout, mout, name, data, dataType, xName):
     
     # write definition line
     vout.append(f'{dataType} {name}[{xName}] =')
-    vout.append('{')
-    
-    # write row of data
-    dataLine = np.array2string(data, max_line_width=120, precision=23, separator=', ')
-    dataLine = re.sub(r"\n", "\n   ", dataLine)
-    vout.append('    ' + dataLine[1:-1])
+    vout.append('{') 
+    writeDataLine(data, vout, 1)  
     vout.append('};\n')
 
 def addVariables2d(vout, mout, name, data, dataType, xName, yName):
@@ -73,9 +99,7 @@ def addVariables2d(vout, mout, name, data, dataType, xName, yName):
     # write row of data
     for i in range(xLen):
         vout.append('    {')
-        dataLine = np.array2string(data[i,:], max_line_width=120, precision=23, separator=', ')
-        dataLine = re.sub(r"\n", "\n    ", dataLine)
-        vout.append('        ' + dataLine[1:-1])
+        writeDataLine(data[i,:], vout, 2)
         if (i < xLen-1):
             vout.append('    },')
         else:
@@ -144,9 +168,7 @@ def addVariables3d(vout, mout, name, data, dataType, xName, yName, zName):
         # write row of data
         for j in range(xLen):
             vout.append('    {')
-            dataLine = np.array2string(data[j,:,i], max_line_width=120, precision=23, separator=', ')
-            dataLine = re.sub(r"\n", "\n    ", dataLine)
-            vout.append('        ' + dataLine[1:-1])
+            writeDataLine(data[j,:,i], vout, 3)
             if (j < xLen-1):
                 vout.append('    },')
             else:
@@ -346,7 +368,7 @@ if __name__ == "__main__":
     # 1d data
     data_1d_f32 = np.array([1.2453, 5.7, 9.3], dtype=np.float32)
     data_1d_i32 = np.array([1, 5, 9], dtype=np.int32)
-    data_long_1d_f32 = np.random.randn(20).astype(np.float32)
+    data_long_1d_f32 = np.random.randn(3000).astype(np.float32)
     
     # 2d data
     data_2d_f32 = np.array([[1.2, 5.7, 9.3],[5.3, 8.8, 2.4]], dtype=np.float32)
