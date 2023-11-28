@@ -6,23 +6,11 @@
 
 import numpy as np
 from scipy import signal as sig
+import matplotlib.pyplot as plt
 
-def timeConstToCoeff(tau, fs):
+class attackReleaseFilter:
     """
-    Time Constant To Coefficient Calculation
-    
-    :param  tau:            Time constant [s]
-    :param  fs:             Sample Rate [Hz]
-    
-    :return coefficient:    Calculated filter coefficient value
-    """
-    
-    return np.exp(-1/(fs * tau))
-
-
-def attackReleaseFilter(x, fs, attackTime, releaseTime):
-    """
-    Attack / Release Filters
+    Attack / Release Filter
     
     Creates a attack / release filter and processes the input signal. The attack / release filter is essentially an 
     lowpass IIR filter. As the time constant value is decreased the filter fc is increased, hence allowing more high
@@ -31,80 +19,116 @@ def attackReleaseFilter(x, fs, attackTime, releaseTime):
     faster or slower to impulse like behaviour in time domain signals.
     
     Referenced from Zolzer, Udo., DAFX: Digital Audio Effects.
-    
-    :param  x:              Input signal in the form of a numpy array where dimension are [channels, samples]
-    :param  fs:             Sample rate [Hz]
-    :param  attackTime      Attack time constant [seconds]
-    :param  releaseTime     Release time constant [seconds]
-    
-    :return y               Output signal
     """
     
-    # get number of channels and shape
-    nChannels, nSamples = x.shape
-    
-    # calculates the attack and release coefficients
-    attackCoeff = timeConstToCoeff(attackTime, fs)
-    releaseCoeff = timeConstToCoeff(releaseTime, fs)
-    
-    y = np.zeros([nChannels, nSamples])
-    for i in range(nChannels):
+    def __init__(self, fs, attackTime, releaseTime):
+        """
+        :param  fs:             Sample rate [Hz]
+        :param  attackTime      Attack time constant [seconds]
+        :param  releaseTime     Release time constant [seconds]
+        """
+        self.fs = fs
+        self.attackTime = attackTime
+        self.releaseTime = releaseTime
+        self.attackCoeff = self.timeConstToCoeff(attackTime)
+        self.releaseCoeff = self.timeConstToCoeff(releaseTime)
         
-        # reset previous output sample for each channel
-        yPrevious = 0
+    def timeConstToCoeff(self, tau):
+        """
+        Time Constant To Coefficient Calculation
         
-        for j in range(nSamples):
+        :param  tau:            Time constant [s]
+        :param  fs:             Sample Rate [Hz]
+        
+        :return coefficient:    Calculated filter coefficient value
+        """
+        
+        return np.exp(-1/(self.fs * tau))
+    
+    def process(self, x):
+        """
+        Process a signal through the attack / release filter
+        
+        :param  x:              Input signal in the form of a numpy array where dimension are [channels, samples]
+        
+        :return y               Output signal
+        """
+        
+        # get number of channels and shape
+        nChannels, nSamples = x.shape
+        
+        y = np.zeros([nChannels, nSamples])
+        for i in range(nChannels):
             
-            xCurrent = x[i,j]
+            # reset previous output sample for each channel
+            yPrevious = 0
             
-            # select to use attack or release coefficient
-            if yPrevious < xCurrent:
-                coeff = attackCoeff
-            else:
-                coeff = releaseCoeff
+            for j in range(nSamples):
+                
+                xCurrent = x[i,j]
+                
+                # select to use attack or release coefficient
+                if yPrevious < xCurrent:
+                    coeff = self.attackCoeff
+                else:
+                    coeff = self.releaseCoeff
 
-            # filter signal
-            yCurrent = (1-coeff)*xCurrent + coeff*yPrevious
-            yPrevious = yCurrent
-            
-            y[i,j] = yCurrent
+                # filter signal
+                yCurrent = (1-coeff)*xCurrent + coeff*yPrevious
+                yPrevious = yCurrent
+                
+                y[i,j] = yCurrent
+        
+        return y
     
-    return y
+    def plotResponse(self, x, y, title):
+        """
+        Plots Input and Output Signals
+        """
+        
+        # get number of channels and shape
+        nChannels, nSamples = x.shape
+        
+        # time vector
+        t = np.zeros([1,nSamples])
+        t[0,:] = np.arange(0,nSamples) * (1/self.fs)
+        
+        # plotting
+        fig, axs = plt.subplots(nChannels, 1, squeeze=False)
+        
+        for i in range(nChannels):
+            axs[i,0].plot(t[0,:], x[i,:], label='input')
+            axs[i,0].set_title(title)
+            axs[i,0].plot(t[0,:], y[i,:], label='output')
+            axs[i,0].grid()
+            axs[i,0].set_xlim(t[0,0], t[0,-1])
+        
+        plt.show()
 
-
-def attackReleasePlotResponse(attackTime, releaseTime, fs):
-    """
-    Plot Attack Release Filter
-    
-    :param  attackTime      Attack time constant [seconds]
-    :param  releaseTime     Release time constant [seconds]
-    :param  fs:             Sample rate [Hz]
-    """
-    
-    # calculates the attack and release coefficients
-    attackCoeff = timeConstToCoeff(attackTime, fs)
-    releaseCoeff = timeConstToCoeff(releaseTime, fs)
-    
-    f, attackH = sig.freqz([1-attackCoeff, 0], [1, -attackCoeff], fs=fs)
-    f, releaseH = sig.freqz([1-releaseCoeff, 0], [1, -releaseCoeff], fs=fs)
-    
-    fig, axs = plt.subplots(2, 1)
-    
-    axs[0].plot(f, 20*np.log10(attackH))
-    axs[0].set_title('Attack Filter')
-    
-    axs[1].plot(f, 20*np.log10(releaseH))
-    axs[1].set_title('Release Filter')
-    
-    for i in range(2):
-        axs[i].grid()
-        axs[i].set_xlim(f[0], f[-1])
-    
-    plt.show()
+    def plotFilters(self):
+        """
+        Plot Filter Response
+        """
+        
+        # calculate frequency response
+        f, attackH = sig.freqz([1-self.attackCoeff, 0], [1, -self.attackCoeff], fs=fs)
+        f, releaseH = sig.freqz([1-self.releaseCoeff, 0], [1, -self.releaseCoeff], fs=fs)
+        
+        fig, axs = plt.subplots(2, 1)
+        
+        axs[0].plot(f, 20*np.log10(attackH))
+        axs[0].set_title('Attack Filter')
+        
+        axs[1].plot(f, 20*np.log10(releaseH))
+        axs[1].set_title('Release Filter')
+        
+        for i in range(2):
+            axs[i].grid()
+            axs[i].set_xlim(f[0], f[-1])
+        
+        plt.show()
        
 if __name__ == "__main__":
-    
-    import matplotlib.pyplot as plt
     
     # input signal params
     f = 10
@@ -125,26 +149,15 @@ if __name__ == "__main__":
     attackTime = 200/fs
     releaseTime = 200/fs
     
-    # processs data through attack release filter
-    yTone = attackReleaseFilter(xTone, fs, attackTime, releaseTime)
-    yStep = attackReleaseFilter(xStep, fs, attackTime, releaseTime)
+    # initialise ar filter
+    arFlt = attackReleaseFilter(fs, attackTime, releaseTime)
     
-    # plot frequency response
-    attackReleasePlotResponse(attackTime, releaseTime, fs)
+    # processs data through ar filter
+    yTone = arFlt.process(xTone)
+    yStep = arFlt.process(xStep)
     
-    # plotting
-    fig, axs = plt.subplots(2, 1)
+    # plot time domain response
+    arFlt.plotResponse(xTone, yTone, 'Tone')
+    arFlt.plotResponse(xStep, yStep, 'Step')
     
-    axs[0].plot(t[0,:], xTone[0,:], label='input')
-    axs[0].plot(t[0,:], yTone[0,:], label='output')
-    axs[0].set_title('Tone')
-    
-    axs[1].plot(t[0,:], xStep[0,:], label='input')
-    axs[1].plot(t[0,:], yStep[0,:], label='output')
-    axs[1].set_title('Step')
-    
-    for i in range(2):
-        axs[i].grid()
-        axs[i].set_xlim(t[0,0], t[0,-1])
-    
-    plt.show()
+    arFlt.plotFilters()
