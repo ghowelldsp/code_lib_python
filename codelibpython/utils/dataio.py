@@ -7,31 +7,6 @@
 import numpy as np
 import wave, struct
 
-
-def createToneSig(amp, f, N, fs):
-    """
-    creates tone signal
-    
-    :param amp: amplitude
-    :param f: tone frequency
-    :param N: number of samples
-    :param fs: sample rate
-    
-    :return x: tone signal
-    :return t: time vector
-    """
-
-    x = np.zeros([N,1])
-    t = np.zeros([N,1])
-    
-    # create time vector
-    t = np.arange(0,N) * (1/fs)
-
-    # create signal
-    x = amp * np.sin(2*np.pi*f*t)
-    
-    return x, t
-
 def scaleFloatToInt(x, bitd, sign):
     """
     scales floating point values to signed / unsigned integer values determined

@@ -21,17 +21,19 @@ class attackReleaseFilter:
     Referenced from Zolzer, Udo., DAFX: Digital Audio Effects.
     """
     
-    def __init__(self, fs, attackTime, releaseTime):
+    def __init__(self, fs, attackTime, releaseTime, initialVal):
         """
         :param  fs:             Sample rate [Hz]
         :param  attackTime      Attack time constant [seconds]
         :param  releaseTime     Release time constant [seconds]
+        :param  initialVal      Initial gain value [value between 0.0 -> 1.0]
         """
         self.fs = fs
         self.attackTime = attackTime
         self.releaseTime = releaseTime
         self.attackCoeff = self.timeConstToCoeff(attackTime)
         self.releaseCoeff = self.timeConstToCoeff(releaseTime)
+        self.initialVal = initialVal
         
     def timeConstToCoeff(self, tau):
         """
@@ -61,7 +63,7 @@ class attackReleaseFilter:
         for i in range(nChannels):
             
             # reset previous output sample for each channel
-            yPrevious = 0
+            yPrevious = self.initialVal
             
             for j in range(nSamples):
                 
@@ -148,9 +150,10 @@ if __name__ == "__main__":
     # attack / release filtering
     attackTime = 200/fs
     releaseTime = 200/fs
+    initialVal = 0.0
     
     # initialise ar filter
-    arFlt = attackReleaseFilter(fs, attackTime, releaseTime)
+    arFlt = attackReleaseFilter(fs, attackTime, releaseTime, initialVal)
     
     # processs data through ar filter
     yTone = arFlt.process(xTone)
