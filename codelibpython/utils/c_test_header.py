@@ -245,6 +245,10 @@ def addVariables(name, data, dimNames):
     # check for unsupported datatypes
     if dataType in unsupportedDataTypes:
         warnings.warn(f'variable {name} with type {dataType} is not a supported data type')
+    elif dataType == 'float32_t':
+        dataType = 'float'
+    elif dataType == 'float64_t':
+        dataType = 'double'
         
     vout.append(f'/** {name} */')
     
@@ -335,9 +339,6 @@ def createCTestHeader(file, macros, variables):
     
     # add typedefs
     hout.append('/*------------------------------------------- TYPEDEFS ---------------------------------------------------------------*/')
-    hout.append('')
-    hout.append('typedef float float32_t;')
-    hout.append('typedef double float64_t;')
     hout.append('')
     for line in tout:
         hout.append(line)
