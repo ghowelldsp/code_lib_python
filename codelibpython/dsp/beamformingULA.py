@@ -16,7 +16,7 @@ class beamformingULA:
     
     """
     
-    def __init__(self, d, nElements, angles, c=343, fs=48000):
+    def __init__(self, d, nElements, c=343, fs=48000):
         """ Calculate Delays
         
         Calculates the delays values for the relative distances.
@@ -24,7 +24,6 @@ class beamformingULA:
         Args:
             d (number):             Seperation distance between adjacent array elements [m].
             nElements (string):     Number of elements in array.
-            angles (np.array):      1D array of angles to calculate delays over [degrees].
             c (number):             Speed of sound [m/s]. Defaults to the speed of sound at room temperature if not
                                     input.
             fs (number):            Sample rate [Hz]. Only required in the return delays values are calcualted in 
@@ -38,9 +37,7 @@ class beamformingULA:
         self.nElements = nElements
         self.c = c
         self.fs = fs
-        
-        # convert angles list to numpy array in radians
-        self.angles = np.array(angles) / 180 * np.pi
+        self.waveType = 'planeWave'
         
         # calculate element locations referenced to the center of the array
         elementLocs = d * (nElements - np.linspace(1, nElements*2-1, nElements)) / 2
@@ -61,8 +58,8 @@ class beamformingULA:
                                     [angles, elements].
         """
         
-        # calculate time delays
-        delays = distances / self.c
+        # calculate time delays (note: negate the distance to return correction delays)
+        delays = -distances / self.c
         self.timeDelays = delays
         
         if delayType == 'samples':
@@ -71,12 +68,13 @@ class beamformingULA:
     
         return delays
     
-    def sphericalWave(self, delayType='time'):
+    def sphericalWave(self, steeringAngle, delayType='time'):
         """ Spherical Wave Delay Models
         
         Calculates the phase delay relative to the center of the array using a plane wave model
 
         Args:
+            steeringAngle (number): Steering angle [deg]
             delayType (string):     Type of delays to return. Options are 'time' and 'samples'.
 
         Returns:
@@ -84,17 +82,21 @@ class beamformingULA:
                                     [angles, elements].
         """
         
+        self.waveType = 'sphericalWave'
+        
         # calculate driver x-y coordinates
         elementXYCoords = np.zeros((self.nElements, 2))
         elementXYCoords[:,0] = self.elementLocs
         
         # listener location
-        listenerXYCoords = np.array((np.sin(self.angles), np.cos(self.angles)))
+        steeringAngle = np.reshape(steeringAngle / 180 * np.pi, [-1])
+        listenerXYCoords = np.array((np.sin(steeringAngle), np.cos(steeringAngle)))
         listenerXYCoords = listenerXYCoords.T
         
         # calculate the eucliean distance between each driver and the listener location
-        distances = np.zeros([len(self.angles), self.nElements])
-        for i in range(len(self.angles)):
+        nAngles = len(steeringAngle)
+        distances = np.zeros([nAngles, self.nElements])
+        for i in range(nAngles):
             distancesTmp = listenerXYCoords[i,:] - elementXYCoords
             distances[i,:] = np.sqrt(np.sum(distancesTmp**2, axis=1)) - 1
         
@@ -103,12 +105,13 @@ class beamformingULA:
         
         return delays
     
-    def planeWave(self, delayType='time'):
+    def planeWave(self, steeringAngle, delayType='time'):
         """ Plane Wave Delay Models
         
         Calculates the phase delay relative to the center of the array using a plane wave model
 
         Args:
+            steeringAngle (number): Steering angle [deg]
             delayType (string):     Type of delays to return. Options are 'time' and 'samples'.
 
         Returns:
@@ -116,8 +119,10 @@ class beamformingULA:
                                     [angles, elements].
         """
         
+        self.waveType = 'planeWave'
+        
         # relative distances
-        distances = self.elementLocs * np.sin(np.reshape(self.angles, [-1,1]))
+        distances = self.elementLocs * np.sin(np.reshape(steeringAngle / 180 * np.pi, [-1,1]))
         
         # calculate delays
         delays = self.__calcDelays(distances, delayType)
@@ -132,13 +137,22 @@ class beamformingULA:
         Args:
             f (number):     Frequency [Hz]
         """
+        
+        # calculate delays between -90 and 90 degrees and offset againest steering angle (note: the return delays are
+        # negated to get actual delays and not correction delays values)
+        plotAngles = np.arange(-90,90,1)
+        timeOffset = self.timeDelays
+        if (self.waveType == 'planeWave'):
+            timeDelays = -self.planeWave(plotAngles, 'time') + timeOffset
+        else:
+            timeDelays = -self.sphericalWave(plotAngles, 'time') + timeOffset
 
         # calculate summed magnitude values
-        mag = np.absolute(np.sum(np.exp(1j*2*np.pi*f*self.timeDelays), axis=1)) / self.nElements
+        mag = np.absolute(np.sum(np.exp(1j*2*np.pi*f*timeDelays), axis=1)) / self.nElements
         
         # plot
         fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-        ax.plot(self.angles, 20*np.log10(mag))
+        ax.plot(plotAngles/180*np.pi, 20*np.log10(mag))
         ax.grid(True)
         ax.set_title(f'Polar Response - Freq = {f} Hz')
         ax.set_xlabel('Magnitude [dB]')
@@ -153,22 +167,22 @@ if __name__ == "__main__":
     # model parameters
     seperationDistance = 0.2            # seperation distance between elements [m]
     nElements = 5                       # number of elements
-    angles = np.arange(-90,90,1)        # angles to calculate delays over [deg]
+    steeringAngle = 45                  # steering angle [deg]
     
     # initialise the beamformer
-    bfH = beamformingULA(seperationDistance, nElements, angles)
+    bfH = beamformingULA(seperationDistance, nElements)
     
     # calculate plane wave model
-    pwTimeDelays = bfH.planeWave('time')
-    pwSampleDelays = bfH.planeWave('samples')
+    pwTimeDelays = bfH.planeWave(steeringAngle, 'time')
+    pwSampleDelays = bfH.planeWave(steeringAngle, 'samples')
     
     # plotting
-    frequency = 1000
+    frequency = 200
     bfH.plot(frequency)
     
     # calculate spherical wave model
-    swTimeDelays = bfH.sphericalWave('time')
-    swSampleDelays = bfH.sphericalWave('samples')
+    swTimeDelays = bfH.sphericalWave(steeringAngle, 'time')
+    swSampleDelays = bfH.sphericalWave(steeringAngle, 'samples')
     
     # plotting
     frequency = 1000
