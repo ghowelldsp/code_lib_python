@@ -46,6 +46,14 @@ Install the python package wheel
 pip install ./path/to/package.whl
 ```
 
+### Install Packages from Requirements
+
+To install packages from a `requirements.txt` file, run
+
+```bash
+pip install -r /path/to/requirement.txt
+```
+
 ### Save List of Package Dependendcies
 
 1. Create a *requirements.txt* file which contains a list of installed packages and their versions.
