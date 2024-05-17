@@ -65,13 +65,13 @@ class designXeqIeqFilters():
             raise ValueError('Error: not a 3rd order system')
 
         # calculate coefficient values of the 2nd order lowpass filter with normalised gain
-        bAlign, aAlign = sig.zpk2tf(zAlign, pAlign, k=1)
+        self.bAlign, self.aAlign = sig.zpk2tf(zAlign, pAlign, k=1)
         
         if self.plot:
             # create frequency vector and alignment transfer functions
             Hcont = sig.freqs(bS, aS, 2*np.pi*self.fVec)[1]
             Hdisc = sig.freqz(bZ, aZ, self.fVec, fs=self.fs)[1]
-            Halign = sig.freqz(bAlign, aAlign, self.fVec, fs=self.fs)[1]
+            Halign = sig.freqz(self.bAlign, self.aAlign, self.fVec, fs=self.fs)[1]
             bNyq, aNyq = sig.zpk2tf(zNyq, pNyq, k=1)
             HNyq = k * sig.freqz(bNyq, aNyq, self.fVec, fs=self.fs)[1]
             
@@ -88,38 +88,34 @@ class designXeqIeqFilters():
             plt.ylabel('magnitude [dB]')
             plt.xlim(self.fVec[0], self.fVec[-1])
             plt.ylim(-60, 10)
-            
-        return bAlign, aAlign
 
-    def __hpShelfFilters(self,
-                         bAlign:np.array,
-                         aAlign:np.array):
+    def __hpShelfFilters(self):
         
         # transform 3rd order system into 2nd order sections (biquads)
-        sos = sig.tf2sos(bAlign, aAlign, 'down');
+        sos = sig.tf2sos(self.bAlign, self.aAlign, 'down');
 
         # get 2nd order HP coefficients
-        bHp = sos[0,0:3];
-        aHp = sos[0,3:6];
+        self.bHp = sos[0,0:3];
+        self.aHp = sos[0,3:6];
 
         # get 1st order shelf
-        bShelf = g * sos[1,0:3];
-        aShelf = sos[1,3:6];
+        self.bShelf = g * sos[1,0:3];
+        self.aShelf = sos[1,3:6];
         
         # find the gain of the hp filter at the top end of the frequency spectrum where the gain is maximally flat
         # TODO - tidy this up
         # TODO - plot
         ftgt = 0.9 * self.fs/2;                                                         
-        gainB2 = np.abs(sig.freqz(bHp, aHp, [ftgt, ftgt], fs=self.fs)); 
+        gainB2 = np.abs(sig.freqz(self.bHp, self.aHp, [ftgt, ftgt], fs=self.fs)); 
         gainB2 = gainB2[0];
-        bHp = bHp / gainB2;
-        bShelf = bShelf * gainB2;
+        self.bHp = self.bHp / gainB2;
+        self.bShelf = self.bShelf * gainB2;
 
         if self.plot:
             # frequency vector and transfer functionself.s
-            Halign = sig.freqz(bAlign, aAlign, self.fVec, fs=self.fs)[1]
-            Hhp = sig.freqz(bHp, aHp, self.fVec, fs=self.fs)[1]
-            Hshelf = sig.freqz(bShelf, aShelf, self.fVec, fs=self.fs)[1]
+            Halign = sig.freqz(self.bAlign, self.aAlign, self.fVec, fs=self.fs)[1]
+            Hhp = sig.freqz(self.bHp, self.aHp, self.fVec, fs=self.fs)[1]
+            Hshelf = sig.freqz(self.bShelf, self.aShelf, self.fVec, fs=self.fs)[1]
             
             # plotting
             plt.figure()
@@ -134,13 +130,11 @@ class designXeqIeqFilters():
             plt.xlim(self.fVec[0], self.fVec[-1])
             plt.ylim(-60, 10)
         
-    def __createIeqFilter(self,
-                          bShelf:np.array,
-                          aShelf:np.array):
+    def __createIeqFilter(self):
         
         # ieq = inductance shelf compensation, invert shelf filter
-        bIeq = aShelf
-        aIeq = bShelf
+        bIeq = self.aShelf
+        aIeq = self.bShelf
 
         # scale coefficients to make a0 = 1
         bIeqNorm = bIeq / aIeq[0]; 
@@ -153,7 +147,7 @@ class designXeqIeqFilters():
             
         if self.plot:
             # calculate frequency responses
-            Hshelf = sig.freqz(bShelf, aShelf, self.fVec, fs=self.fs)[1]
+            Hshelf = sig.freqz(self.bShelf, self.aShelf, self.fVec, fs=self.fs)[1]
             Hieq = sig.freqz(bIeq, aIeq, self.fVec, fs=self.fs)[1]
             HieqNorm = sig.freqz(bIeqNorm, aIeqNorm, self.fVec, fs=self.fs)[1]
             
@@ -175,26 +169,28 @@ class designXeqIeqFilters():
                           Qt):
         
         # create 2nd order reference filter coefficients
-        [bHpRef, aHpRef] = dspm.filter2ndOrderZ(ft, Qt, self.fs, ft, 'HP', 28);
+        bHpRef, aHpRef = dspm.createFlt2ndOrderZ(ft, Qt, self.fs, filterType='highpass');
 
-        # xeq = extension EQ compensation
-        # Cancel original pole, and add extension pole. Assume zeros the same
+        # xeq (cancel original pole, and add extension pole, assume zeros the same)
         bXeq = aHp;
         aXeq = aHpRef;
 
-        % check to see if the resulting xeq filter is stable
-        if ~checkfilter(bXeq, aXeq, 1)
-            error('XEQ filter is unstable')
+        # check to see if the resulting xeq filter is stable
+        # TODO - should this check for min phase too?
+        if ~dspm.isStable(aXeq, 1)[0]:
+            raise ValueError('Error: Xeq filter is unstable')
     
-    
-# def _mainPlots():
+    # def __mainPlots():
 
     def process(self,
-                tuningParams):
+                bS:np.array,
+                aS:np.array,
+                ft,
+                Qt):
         
-        self.__alignment()
+        self.__alignment(bS, aS)
         self.__hpShelfFilters()
         self.__createIeqFilter()
-        self.__createXeqFilter()
-        self.__mainPlots()
+        self.__createXeqFilter(ft, Qt)
+        # self.__mainPlots()
     
