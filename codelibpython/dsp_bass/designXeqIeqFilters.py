@@ -169,11 +169,11 @@ class designXeqIeqFilters():
                           Qt):
         
         # create 2nd order reference filter coefficients
-        bHpRef, aHpRef = dspm.createFlt2ndOrderZ(ft, Qt, self.fs, filterType='highpass');
+        bHpRef, aHpRef = dspm.createFlt2ndOrderZ(ft, Qt, self.fs, filterType='highpass')
 
         # xeq (cancel original pole, and add extension pole, assume zeros the same)
-        bXeq = aHp;
-        aXeq = aHpRef;
+        bXeq = aHp
+        aXeq = aHpRef
 
         # check to see if the resulting xeq filter is stable
         # TODO - should this check for min phase too?
