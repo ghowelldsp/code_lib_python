@@ -9,6 +9,8 @@ import scipy.signal as sig
 import matplotlib.pyplot as plt
 import scipy.signal._filter_design as fd
 
+import designXeqIeqFilters as dxif
+
 class calcBassExtParams():
     
     def __init__(self,
@@ -36,8 +38,6 @@ class calcBassExtParams():
         # TODO - tidy up
         self.fs = fs
         
-    def __designEx
-        
     def calcParams(self,
                    ftLow,
                    Qt,
@@ -48,19 +48,22 @@ class calcBassExtParams():
                    dropIeq,
                    plotData:bool=False):
         
-        self.tuningParams = {
-            'ftLow' : ftLow,
-            'Qt' : Qt,
-            'maxMmPeak' : maxMmPeak,
-            'attackTime' : attackTime,
-            'releaseTime' : releaseTime,
-            'rmsAttackTime' : rmsAttackTime,
-            'dropIeq' : dropIeq
-        }
+        # self.tuningParams = {
+        #     'ftLow' : ftLow,
+        #     'Qt' : Qt,
+        #     'maxMmPeak' : maxMmPeak,
+        #     'attackTime' : attackTime,
+        #     'releaseTime' : releaseTime,
+        #     'rmsAttackTime' : rmsAttackTime,
+        #     'dropIeq' : dropIeq
+        # }
         
-        self.plotData = plotData
-        
-        self.__designXeqIeqFilters(self.tuningParams)
+        dxif.designXeqIeqFilters(self.driverParams['bAlign'], 
+                                 self.driverParams['aAlign'], 
+                                 ftLow,
+                                 Qt,
+                                 fs,
+                                 plotData)
         
         if plotData:
             plt.show()
