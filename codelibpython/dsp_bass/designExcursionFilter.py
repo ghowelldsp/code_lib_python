@@ -7,17 +7,20 @@
 import numpy as np
 import scipy.signal as sig
 import scipy.optimize as opt
-import dsp_maths as dspm
+import codelibpython.dsp_maths as dspm
 
 def _fitToSealed(paramsEst:np.array,
-                 paramsFix:dict):
+                 filterType,
+                 fVec,
+                 excurNorm,
+                 fs):
     
     # load variables
-    fs = paramsFix['fs']
-    fVec = paramsFix['fVec']
-    excurNorm = paramsFix['excurNorm']
+    # fs = paramsFix['fs']
+    # fVec = paramsFix['fVec']
+    # excurNorm = paramsFix['excurNorm']
     
-    match paramsFix['filterType']:
+    match filterType:
         
         case 'lp':
             
@@ -36,7 +39,10 @@ def _fitToSealed(paramsEst:np.array,
             lpB, lpA = dspm.createFlt2ndOrderZ(lpFc, lpQ, fs, filterType='lowpass')
             
             # form sos matrix
-            sos = np.array([lpB, lpA])
+            sos = np.zeros([1,6])
+            sos[0,0:3] = lpB
+            sos[0,3:6] = lpA
+            # sos = np.asarray([lpB, lpA])
             
         case 'lppeq':
             
@@ -113,33 +119,34 @@ def _fitToSealed(paramsEst:np.array,
     return H, weights
             
 def _costFunction(paramsEst:np.array,
-                  paramsFix:dict):
+                  filterType,
+                  fVec,
+                  excurNorm,
+                  fs):
     
-    H, weights = _fitToSealed(paramsEst, paramsFix)
+    H, weights = _fitToSealed(paramsEst, filterType, fVec, excurNorm, fs)
     
     # calc error function
-    err = (1 - (H / paramsFix['excurNorm'])) * weights;
+    err = (1 - (H / excurNorm)) * weights;
     sqSumErr = np.sum(np.abs(err));
     
     return sqSumErr
         
-def designExcursionFilter():
-    
-    # TODO - get inputs
-    fVec 
-    excur
-    wc
-    excurGain
-    excurMm
-    HieqExcurOffset
-    filterType
-    enclosureType 
+def designExcursionFilter(fVec,
+                          excur,
+                          wc,
+                          excurGain,
+                          excurMm,
+                        #   HieqExcurOffset,
+                          filterType,
+                          enclosureType,
+                          fs):
     
     # normalised excursion
     excurNorm = excur * wc**2
 
-    # removes inductance from excursion if required
-    excurNorm = excurNorm * HieqExcurOffset                                
+    # # removes inductance from excursion if required
+    # excurNorm = excurNorm * HieqExcurOffset
 
     # normalised gain for normalised excursion to mm excursion
     norm2mmGain = (excurGain * 1000) / wc**2
@@ -147,7 +154,7 @@ def designExcursionFilter():
     # optimisation of filter parameters
     match enclosureType:
         # fit against a sealed enclosure model
-        case 'sealedBox':
+        case 'sealed':
             
             match filterType:
                 case 'lp':
@@ -157,18 +164,12 @@ def designExcursionFilter():
                 case 'lp2peq':
                     paramsEst = np.array([1, 70, 0.707, 40, 0.5, 1, 100, -0.5, 1]) # [ gain lpFc lpQ peqFc1 peqGain1 peqQ1 peqFc2 peqGain2 peqQ2]
             
-            paramsFix = {
-                'filterType' : filterType,
-                'fs' : fs,
-                'fVec' : freqArr,
-                'excurNorm' : excurNorm
-            }
-            
             # optimisation function to find fitted filter parameters
-            fittedData = opt.fmin(_costFunction, paramsEst, paramsFix, xtol=1e-10, ftol=1e-6, maxiter=10e3, maxfun=10e3, full_output=True)
+            args = (filterType, fVec, excurNorm, fs)
+            fittedData = opt.fmin(_costFunction, paramsEst, args=args, xtol=1e-10, ftol=1e-6, maxiter=10e3, maxfun=10e3, full_output=True)
             
             # runs fitted params through function to get final sos matrix and gain value
-            H = _fitToSealed(fittedData[0], paramsFix)[0]
+            H = _fitToSealed(fittedData[0], filterType, fVec, excurNorm, fs)[0]
             
         case 'ported':
             # TODO - implement
@@ -176,10 +177,13 @@ def designExcursionFilter():
         
         case _:
             raise ValueError('Error: invalid enclosureType')
-        
+
+    # plot data
+    plt.figure()
+    plt.subplot(2,1,1)
     
-    # TODO - plot data
     
-if __name__ == "__main__":
+    
+# if __name__ == "__main__":
     
     

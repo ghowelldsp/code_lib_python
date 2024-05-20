@@ -13,9 +13,9 @@ class calcLumpedParams:
     
     def __init__(self, 
                  impedFileName:str,
-                #  VoltsPeakAmp,
-                #  Bl,
-                #  Mmc,
+                 VoltsPeakAmp,
+                 Bl,
+                 Mmc,
                  Re:float=None):
         
         # import data
@@ -31,9 +31,9 @@ class calcLumpedParams:
         # assign local params
         self.measuredData['fVec'] = impedData['f']
         self.measuredData['Z'] = impedData['Z']
-        # self.measuredData['VoltsPeakAmp'] = VoltsPeakAmp
-        # self.measuredData['Bl'] = Bl
-        # self.measuredData['Mmc'] = Mmc
+        self.measuredData['VoltsPeakAmp'] = VoltsPeakAmp
+        self.measuredData['Bl'] = Bl
+        self.measuredData['Mmc'] = Mmc
         
         # if no Re value is input pick it from the lowest value of the measures impedance
         if (Re == None):
@@ -276,30 +276,41 @@ class calcLumpedParams:
         # box transfer function
         Hbox = s2/w0**2 + S/(w0*Qmc) + 1
 
-        # alignment                                                    
+        # alignment
         fitAlign = (s2/w0**2) * Hind / (S/(w0*Qec) * Hind + Hbox)
 
         # displacement based on alignment only
         # TODO - should this not be /S
-        fitDisplace = fitAlign / s2                                        
+        fitDisp = fitAlign / s2
 
         # calculates excursion gain
         # TODO - get klippel parameters
         fitExcurGain = (self.measuredData['VoltsPeakAmp'] * self.measuredData['Bl']) / (Re * self.measuredData['Mmc'])
 
         # calculate excursion in mm
-        fitExcurMm = fitDisplace * fitExcurGain * 1000
+        fitExcurMm = fitDisp * fitExcurGain * 1000
         
-        # TODO - maybe create seperate alignment dictionary
-        self.driverParams['bAlign'] = bAlign
-        self.driverParams['aAlign'] = aAlign
+        # save params
+        self.finalParams['bAlign'] = bAlign
+        self.finalParams['aAlign'] = aAlign
+        self.finalParams['Hdisp'] = fitDisp
+        self.finalParams['HdispGain'] = fitExcurGain
+        self.finalParams['HdispMm'] = fitExcurMm
         
     def __saveParams(self):
         
-        # remove extension from input file name
+        # parameters to be saved to file
+        # TODO - maybe create seperate alignment dictionary
+        self.driverParams['fVec'] = self.finalParams['fVec']
+        self.driverParams['w0'] = self.finalParams['w0']
+        self.driverParams['bAlign'] = self.finalParams['bAlign']
+        self.driverParams['aAlign'] = self.finalParams['aAlign']
+        self.driverParams['Hdisp'] = self.finalParams['Hdisp']
+        self.driverParams['HdispGain'] = self.finalParams['HdispGain']
+        self.driverParams['HdispMm'] = self.finalParams['HdispMm']
         
         # TODO - update this
-        np.save(f'impedTestData/driverParams', self.driverParams)
+        np.save(f'codelibpython/dsp_bass/impedTestData/driverParams', self.driverParams)
         
     def calcParams(self,
                    modelType:str):
@@ -320,12 +331,12 @@ if __name__ == "__main__":
     
     # measured params
     VoltsPeakAmp = 15
-    # Bl = 10
-    # Mmc = 0.010
-    # Re = 4.0
+    Bl = 10
+    Mmc = 0.010
+    Re = 4.0
     
     # initialise
-    lp = calcLumpedParams("impedTestData/testData.npz", Re)
+    lp = calcLumpedParams("codelibpython/dsp_bass/impedTestData/testData.npz", VoltsPeakAmp, Bl, Mmc)
     
     # create parameter for a closed box
     params = lp.calcParams("closed box")

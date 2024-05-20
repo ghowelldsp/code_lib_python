@@ -9,15 +9,16 @@ import scipy.signal as sig
 import matplotlib.pyplot as plt
 import scipy.signal._filter_design as fd
 
-import dsp_maths as dspm
+import codelibpython.dsp_maths as dspm
 
-def _alignment(bAlignS:np.array,
-               aAlignS:np.array,
+def _alignment(bS:np.array,
+               aS:np.array,
                fs:int,
-               fVec:np.array):
+               fVec:np.array,
+               plot:bool=False):
     
     # calculate discrete coefficients using bilinear transform
-    bZ, aZ = sig.bilinear(bAlignS, aAlignS, fs)
+    bZ, aZ = sig.bilinear(bS, aS, fs)
     
     # determine pole zero locations
     z, p, k = sig.tf2zpk(bZ, aZ)
@@ -45,7 +46,8 @@ def _alignment(bAlignS:np.array,
     pAlign, pNyq = removeNyquistFilter(p)
     
     # check zero alignment parameters are within limits
-    if (zAlign > -0.9) or (zAlign > -1.1):
+    # TODO - check on the reasoning of this
+    if (zNyq > -0.9) or (zNyq < -1.1):
         raise ValueError('Error: zeros over limits')
     
     # check for a 3rd order sytem
@@ -79,87 +81,116 @@ def _alignment(bAlignS:np.array,
         
     return bAlignZ, aAlignZ
 
-def __hpShelfFilters(self):
+def _hpShelfFilters(bAlignZ:np.array,
+                    aAlignZ:np.array,
+                    fs:int,
+                    fVec:np.array,
+                    plot:bool=False):
     
     # transform 3rd order system into 2nd order sections (biquads)
-    sos = sig.tf2sos(self.bAlign, self.aAlign, 'down');
-
-    # get 2nd order HP coefficients
-    self.bHp = sos[0,0:3];
-    self.aHp = sos[0,3:6];
-
+    sos = sig.tf2sos(bAlignZ, aAlignZ)
+    
+    # TODO - the a coefficient are taken from different sections when the should be from the same row. Need to see why
+    # the matlab implimentation is different
+    
     # get 1st order shelf
-    self.bShelf = g * sos[1,0:3];
-    self.aShelf = sos[1,3:6];
+    bShelf = sos[0,0:3]
+    aShelf = sos[1,3:6]
+
+    # get 2nd order highpass coefficients
+    bHp = sos[1,0:3]
+    aHp = sos[0,3:6]
     
     # find the gain of the hp filter at the top end of the frequency spectrum where the gain is maximally flat
-    # TODO - tidy this up
-    # TODO - plot
-    ftgt = 0.9 * self.fs/2;                                                         
-    gainB2 = np.abs(sig.freqz(self.bHp, self.aHp, [ftgt, ftgt], fs=self.fs)); 
-    gainB2 = gainB2[0];
-    self.bHp = self.bHp / gainB2;
-    self.bShelf = self.bShelf * gainB2;
+    freq = 0.9 * fs/2                                                        
+    gain = np.abs(sig.freqz(bHp, aHp, freq, fs=fs)[1])
+    bHpNorm = bHp / gain;
+    bShelfNorm = bShelf * gain;
 
-    if self.plot:
-        # frequency vector and transfer functionself.s
-        Halign = sig.freqz(self.bAlign, self.aAlign, self.fVec, fs=self.fs)[1]
-        Hhp = sig.freqz(self.bHp, self.aHp, self.fVec, fs=self.fs)[1]
-        Hshelf = sig.freqz(self.bShelf, self.aShelf, self.fVec, fs=self.fs)[1]
+    if plot:
+        
+        # frequency vector and transfer function
+        Halign = sig.freqz(bAlignZ, aAlignZ, fVec, fs=fs)[1]
+        Hhp = sig.freqz(bHp, aHp, fVec, fs=fs)[1]
+        Hshelf = sig.freqz(bShelf, aShelf, fVec, fs=fs)[1]
+        HhpNorm = sig.freqz(bHpNorm, aHp, fVec, fs=fs)[1]
+        HshelfNorm = sig.freqz(bShelfNorm, aShelf, fVec, fs=fs)[1]
         
         # plotting
         plt.figure()
-        plt.semilogx(self.fVec, 20*np.log10(Halign), label='alignment')
-        plt.semilogx(self.fVec, 20*np.log10(Hhp), label='highpass')
-        plt.semilogx(self.fVec, 20*np.log10(Hshelf), label='shelf')
+        
+        plt.subplot(2,1,1)
+        plt.semilogx(fVec, 20*np.log10(Halign), '--', label='alignment')
+        plt.semilogx(fVec, 20*np.log10(Hhp), label='highpass')
+        plt.semilogx(fVec, 20*np.log10(Hshelf), label='shelf')
         plt.legend()
         plt.grid()
         plt.title('HP & Shelf TFs')
         plt.xlabel('freq [Hz]')
         plt.ylabel('magnitude [dB]')
-        plt.xlim(self.fVec[0], self.fVec[-1])
-        plt.ylim(-60, 10)
+        plt.xlim(fVec[0], fVec[-1])
+        
+        plt.subplot(2,1,2)
+        plt.semilogx(fVec, 20*np.log10(Hhp), 'b--', label='highpass')
+        plt.semilogx(fVec, 20*np.log10(Hshelf), 'g--', label='shelf')
+        plt.semilogx(fVec, 20*np.log10(HhpNorm), 'b', label='highpass norm')
+        plt.semilogx(fVec, 20*np.log10(HshelfNorm), 'g', label='shelf norm')
+        plt.legend()
+        plt.grid()
+        plt.title('HP & Shelf Normalised TFs')
+        plt.xlabel('freq [Hz]')
+        plt.ylabel('magnitude [dB]')
+        plt.xlim(fVec[0], fVec[-1])
+        plt.ylim(-5, 5)
+        
+    return bShelfNorm, aShelf, bHp, aHp
     
-def __createIeqFilter(self):
+def _createIeqFilter(bShelf:np.array,
+                     aShelf:np.array,
+                     fs:int,
+                     fVec:np.array,
+                     plot:bool=False):
     
-    # ieq = inductance shelf compensation, invert shelf filter
-    bIeq = self.aShelf
-    aIeq = self.bShelf
+    # invert shelf filter to form the ieq filter (inductance shelf compensation)
+    bIeq = aShelf
+    aIeq = bShelf
 
     # scale coefficients to make a0 = 1
-    bIeqNorm = bIeq / aIeq[0]; 
-    aIeqNorm = aIeq / aIeq[0];
+    bIeq = bIeq / aIeq[0]; 
+    aIeq = aIeq / aIeq[0];
 
     # check to see if the resulting ieq filter is stable
     # TODO - should this check for min phase too?
-    if ~dspm.isStable(aIeq, 1)[0]:
+    if not dspm.isStable(aIeq):
         raise ValueError('Error: Ieq filter is unstable')
         
-    if self.plot:
+    if plot:
         # calculate frequency responses
-        Hshelf = sig.freqz(self.bShelf, self.aShelf, self.fVec, fs=self.fs)[1]
-        Hieq = sig.freqz(bIeq, aIeq, self.fVec, fs=self.fs)[1]
-        HieqNorm = sig.freqz(bIeqNorm, aIeqNorm, self.fVec, fs=self.fs)[1]
+        Hshelf = sig.freqz(bShelf, aShelf, fVec, fs=fs)[1]
+        Hieq = sig.freqz(bIeq, aIeq, fVec, fs=fs)[1]
         
         # plot the 
         plt.figure()
-        plt.semilogx(self.fVec, 20*np.log10(Hshelf), label='shelf')
-        plt.semilogx(self.fVec, 20*np.log10(Hieq), label='Ieq')
-        plt.semilogx(self.fVec, 20*np.log10(HieqNorm), label='Ieq Norm')
+        plt.semilogx(fVec, 20*np.log10(Hshelf), '--', label='shelf')
+        plt.semilogx(fVec, 20*np.log10(Hieq), label='Ieq')
         plt.legend()
         plt.grid()
         plt.title('Ieq Filter')
         plt.xlabel('freq [Hz]')
         plt.ylabel('magnitude [dB]')
-        plt.xlim(self.fVec[0], self.fVec[-1])
-        plt.ylim(-60, 10)
+        plt.xlim(fVec[0], fVec[-1])
+    
+    return bIeq, aIeq
 
-def __createXeqFilter(self,
-                        ft,
-                        Qt):
+def _createXeqFilter(aHp:np.array,
+                     ft:float,
+                     Qt:float,
+                     fs:int,
+                     fVec:np.array,
+                     plot:bool=False):
     
     # create 2nd order reference filter coefficients
-    bHpRef, aHpRef = dspm.createFlt2ndOrderZ(ft, Qt, self.fs, filterType='highpass');
+    bHpRef, aHpRef = dspm.createFlt2ndOrderZ(ft, Qt, fs, filterType='highpass');
 
     # xeq (cancel original pole, and add extension pole, assume zeros the same)
     bXeq = aHp;
@@ -167,10 +198,26 @@ def __createXeqFilter(self,
 
     # check to see if the resulting xeq filter is stable
     # TODO - should this check for min phase too?
-    if ~dspm.isStable(aXeq, 1)[0]:
+    if not dspm.isStable(aXeq):
         raise ValueError('Error: Xeq filter is unstable')
-
-# def __mainPlots():
+    
+    if plot:
+        # calculate frequency responses
+        Hhp = sig.freqz(bHpRef, aHpRef, fVec, fs=fs)[1]
+        Hxeq = sig.freqz(bXeq, aXeq, fVec, fs=fs)[1]
+        
+        # plot the 
+        plt.figure()
+        plt.semilogx(fVec, 20*np.log10(Hhp), '--', label='highpass')
+        plt.semilogx(fVec, 20*np.log10(Hxeq), label='Xeq')
+        plt.legend()
+        plt.grid()
+        plt.title('Ieq Filter')
+        plt.xlabel('freq [Hz]')
+        plt.ylabel('magnitude [dB]')
+        plt.xlim(fVec[0], fVec[-1])
+        
+    return bXeq, aXeq
 
 def designXeqIeqFilters(bAlignS:np.array,
                         aAlignS:np.array,
@@ -181,10 +228,14 @@ def designXeqIeqFilters(bAlignS:np.array,
     
     if plot:
         # create frequency vector
-        self.fVec = np.linspace(10, fs/2, 1000)
+        fVec = np.linspace(10, fs/2, 1000)
+    else:
+        fVec = None
     
-    bAlignZ, aAlignZ = self._alignment(bAlignS, aAlignS)
-    # self.__hpShelfFilters()
-    # self.__createIeqFilter()
-    # self.__createXeqFilter(ft, Qt)
-    # self.__mainPlots()
+    # create filters
+    bAlignZ, aAlignZ = _alignment(bAlignS, aAlignS, fs, fVec, plot)
+    bShelf, aShelf, bHp, aHp = _hpShelfFilters(bAlignZ, aAlignZ, fs, fVec, plot)
+    bIeq, aIeq = _createIeqFilter(bShelf, aShelf, fs, fVec, plot)
+    bXeq, aXeq = _createXeqFilter(aHp, ft, Qt, fs, fVec, plot)
+    
+    return bIeq, aIeq, bXeq, aXeq

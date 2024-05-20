@@ -20,12 +20,12 @@ def isStable(a:np.array,
             display stability results message
     """
     
-    stable = 1
-    
     p = sig.tf2zpk(1, a)[1]
     
-    if (np.max(np.abs(sig.tf2zpk(1, a)[1])) > 1):
-        stable = 0
+    if (np.max(np.abs(p)) <= 1):
+        stable = True
+    else:
+        stable = False
         
     if disp:
         if stable:
