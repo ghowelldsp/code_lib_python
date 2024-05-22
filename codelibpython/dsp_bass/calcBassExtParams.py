@@ -93,6 +93,8 @@ class calcBassExtParams():
                                    enclosureType='sealed',
                                    fs=fs)
         
+        self.__rms():
+        
         if plotData:
             plt.show()
     

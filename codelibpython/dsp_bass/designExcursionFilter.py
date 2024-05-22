@@ -7,6 +7,8 @@
 import numpy as np
 import scipy.signal as sig
 import scipy.optimize as opt
+import matplotlib.pyplot as plt
+
 import codelibpython.dsp_maths as dspm
 
 def _fitToSealed(paramsEst:np.array,
@@ -42,7 +44,6 @@ def _fitToSealed(paramsEst:np.array,
             sos = np.zeros([1,6])
             sos[0,0:3] = lpB
             sos[0,3:6] = lpA
-            # sos = np.asarray([lpB, lpA])
             
         case 'lppeq':
             
@@ -71,7 +72,11 @@ def _fitToSealed(paramsEst:np.array,
             peqB, peqA = dspm.parametricEq(peqFc, peqQ, peqGain, fs, peqFc);
             
             # form sos matrix
-            sos = np.array([[lpB, lpA], [peqB, peqA]])
+            sos = np.zeros([2,6])
+            sos[0,0:3] = lpB
+            sos[0,3:6] = lpA
+            sos[1,0:3] = peqB
+            sos[1,3:6] = peqA
         
         case 'lp2peq':
             
@@ -110,13 +115,23 @@ def _fitToSealed(paramsEst:np.array,
             # form sos matrux
             sos = np.array([[lpB, lpA], [peq1B, peq1A], [peq2B, peq2A]])
             
+            # form sos matrix
+            sos = np.zeros([3,6])
+            sos[0,0:3] = lpB
+            sos[0,3:6] = lpA
+            sos[1,0:3] = peq1B
+            sos[1,3:6] = peq1A
+            sos[2,0:3] = peq2B
+            sos[2,3:6] = peq2A
+            
     # calc transfer function of filters
     H = gain * sig.sosfreqz(sos, fVec, fs)[1]
 
     # calculate weights                          
     weights = np.abs(excurNorm)**1; # TODO - 1/f
     
-    return H, weights
+    # TODO - do we need to return H and weights
+    return H, weights, sos, gain
             
 def _costFunction(paramsEst:np.array,
                   filterType,
@@ -124,7 +139,7 @@ def _costFunction(paramsEst:np.array,
                   excurNorm,
                   fs):
     
-    H, weights = _fitToSealed(paramsEst, filterType, fVec, excurNorm, fs)
+    H, weights, _, _ = _fitToSealed(paramsEst, filterType, fVec, excurNorm, fs)
     
     # calc error function
     err = (1 - (H / excurNorm)) * weights;
@@ -140,7 +155,8 @@ def designExcursionFilter(fVec,
                         #   HieqExcurOffset,
                           filterType,
                           enclosureType,
-                          fs):
+                          fs,
+                          plotData:bool=False):
     
     # normalised excursion
     excurNorm = excur * wc**2
@@ -169,7 +185,7 @@ def designExcursionFilter(fVec,
             fittedData = opt.fmin(_costFunction, paramsEst, args=args, xtol=1e-10, ftol=1e-6, maxiter=10e3, maxfun=10e3, full_output=True)
             
             # runs fitted params through function to get final sos matrix and gain value
-            H = _fitToSealed(fittedData[0], filterType, fVec, excurNorm, fs)[0]
+            H, weights, sos, gain = _fitToSealed(fittedData[0], filterType, fVec, excurNorm, fs)
             
         case 'ported':
             # TODO - implement
@@ -178,11 +194,53 @@ def designExcursionFilter(fVec,
         case _:
             raise ValueError('Error: invalid enclosureType')
 
-    # plot data
-    plt.figure()
-    plt.subplot(2,1,1)
+    if plotData:
+        
+        H = excurGain * sig.sosfreqz(sos, fVec, fs=fs)
+        
+        # calculate overall transfer function
+        H = gain * sig.sosfreqz(sos, fVec, fs)
     
-    
+        # calculate individual transfer functions of lp and peq filters used
+        Hlp = sig.sosfreqz(sos[0,:], fVec, fs)
+        Hpeq = gain * sig.sosfreqz(sos[1,:], fVec, fs)
+
+        # plot data
+        plt.figure()
+        plt.subplot(2,2,1)
+        plt.semilogx(fVec, np.abs(excurMm))
+        plt.grid()
+        plt.title('Displacement')
+        plt.xlabel('frequency [Hz]')
+        plt.ylabel('displacement [mm]')
+        plt.xlim(fVec[0], fVec[-1])
+        
+        plt.subplot(2,2,2)
+        plt.semilogx(fVec, np.abs(excurNorm), label='dispNorm')
+        plt.semilogx(fVec, np.abs(H), label='dispNorm')
+        plt.grid()
+        plt.title('Original vs. Fitted Normalised Displacement')
+        plt.xlabel('frequency [Hz]')
+        plt.ylabel('displacement [normalised]')
+        plt.xlim(fVec[0], fVec[-1])
+        
+        plt.subplot(2,2,3)
+        plt.semilogx(fVec, np.abs(Hlp), label='Hlp')
+        plt.semilogx(fVec, np.abs(Hpeq), label='Hpeq')
+        plt.semilogx(fVec, np.abs(Hlp * Hpeq), label='Htot')
+        plt.grid()
+        plt.title('Fitted Displacement')
+        plt.xlabel('frequency [Hz]')
+        plt.ylabel('displacement [normalised]')
+        plt.xlim(fVec[0], fVec[-1])
+        
+        plt.subplot(2,2,4)
+        plt.semilogx(fVec, 20*np.log10(H / excurNorm), label='dispNorm')
+        plt.grid()
+        plt.title('Fitted Displacement Error')
+        plt.xlabel('frequency [Hz]')
+        plt.ylabel('magnitude [dB]')
+        plt.xlim(fVec[0], fVec[-1])
     
 # if __name__ == "__main__":
     
