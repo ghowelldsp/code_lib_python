@@ -44,6 +44,11 @@ class calcBassExtParams():
         # TODO - tidy up
         self.fs = fs
         
+    def __writeParams(self):
+        
+        self.writeParams['extenFlt']['attackAlpha']
+        self.writeParams['extenFlt']['attackOneMinusAlpha']
+        
     def calcParams(self,
                    ftLow,
                    Qt,
@@ -93,8 +98,12 @@ class calcBassExtParams():
                                    enclosureType='sealed',
                                    fs=fs)
         
-        self.__rms():
+        self.__xeqLimiting():
         
+        self.__rms():
+            
+        self.__saveData():
+                    
         if plotData:
             plt.show()
     
