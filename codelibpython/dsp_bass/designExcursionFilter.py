@@ -69,7 +69,7 @@ def _fitToSealed(paramsEst:np.array,
             lpB, lpA = dspm.createFlt2ndOrderZ(lpFc, lpQ, fs, filterType='lowpass')
             
             # calc peq coefficients
-            peqB, peqA = dspm.parametricEq(peqFc, peqQ, peqGain, fs, peqFc);
+            peqB, peqA = dspm.parametricEq(peqFc, peqQ, peqGain, fs);
             
             # form sos matrix
             sos = np.zeros([2,6])
@@ -196,14 +196,14 @@ def designExcursionFilter(fVec,
 
     if plotData:
         
-        H = excurGain * sig.sosfreqz(sos, fVec, fs=fs)
+        H = excurGain * sig.sosfreqz(sos, fVec, fs=fs)[1]
         
         # calculate overall transfer function
-        H = gain * sig.sosfreqz(sos, fVec, fs)
+        H = gain * sig.sosfreqz(sos, fVec, fs)[1]
     
         # calculate individual transfer functions of lp and peq filters used
-        Hlp = sig.sosfreqz(sos[0,:], fVec, fs)
-        Hpeq = gain * sig.sosfreqz(sos[1,:], fVec, fs)
+        Hlp = sig.sosfreqz(sos[0,:], fVec, fs)[1]
+        Hpeq = gain * sig.sosfreqz(sos[1,:], fVec, fs)[1]
 
         # plot data
         plt.figure()

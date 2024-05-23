@@ -94,9 +94,10 @@ class calcBassExtParams():
                                    self.driverParams['w0'],
                                    self.driverParams['HdispGain'],
                                    self.driverParams['HdispMm'],
-                                   filterType='lp',
+                                   filterType='lppeq',
                                    enclosureType='sealed',
-                                   fs=fs)
+                                   fs=fs,
+                                   plotData=True)
         
         self.__xeqLimiting():
         
