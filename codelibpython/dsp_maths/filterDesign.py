@@ -62,7 +62,7 @@ def createFlt2ndOrderZ(fc:float,
         # s^2 + wc/Q s + wc*wc
         #
     
-        bS = np.array([wc*wc, 0, 0])
+        bS = np.array([0, 0, wc*wc])
     
     elif (filterType == 'bandpass'):
         # set band pass analogue filter response
@@ -81,6 +81,7 @@ def createFlt2ndOrderZ(fc:float,
     aS = np.array([1, wc/Q, wc*wc])
     
     # convert to discrete domain
+    # TODO - create and impinvar function
     if (warp):
         bZ, aZ = sig.bilinear(bS, aS, fs)
     else:

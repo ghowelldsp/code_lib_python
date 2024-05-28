@@ -234,9 +234,9 @@ class calcLumpedParams:
         fVec = self.finalParams['fVec']
         
         plt.figure()
-        plt.plot(fVec, np.real(self.finalParams['Z']), label='measured')
-        plt.plot(fVec, np.real(ZEst), '--', label='estimated')
-        plt.plot(fVec, np.real(ZFit), '--', label='optimised')
+        plt.semilogx(fVec, np.real(self.finalParams['Z']), label='measured')
+        plt.semilogx(fVec, np.real(ZEst), '--', label='estimated')
+        plt.semilogx(fVec, np.real(ZFit), '--', label='optimised')
         plt.legend()
         plt.grid()
         plt.title('Impedance Optimisation')
@@ -290,6 +290,25 @@ class calcLumpedParams:
         # calculate excursion in mm
         fitExcurMm = fitDisp * fitExcurGain * 1000
         
+        # plot data
+        fVec = self.finalParams['fVec']
+        plt.figure()
+        plt.subplot(2,1,1)
+        plt.semilogx(fVec, 20*np.log10(fitAlign))
+        plt.grid()
+        plt.title('Alignment')
+        plt.ylabel('magnitude [dB]')
+        plt.xlabel('freq [Hz]')
+        plt.xlim(fVec[0], fVec[-1])
+        
+        plt.subplot(2,1,2)
+        plt.semilogx(fVec, np.abs(fitExcurMm)) # TODO - should this be real?
+        plt.grid()
+        plt.title('Displacement')
+        plt.ylabel('displacement [mm]')
+        plt.xlabel('freq [Hz]')
+        plt.xlim(fVec[0], fVec[-1])
+        
         # save params
         self.finalParams['bAlign'] = bAlign
         self.finalParams['aAlign'] = aAlign
@@ -330,13 +349,14 @@ if __name__ == "__main__":
     print('\nCalculating Lumped Parameters\n')
     
     # measured params
-    VoltsPeakAmp = 15
-    Bl = 10
+    VoltsPeakAmp = 17.9 * np.sqrt(2)
+    Bl = 5.184
     Mmc = 0.010
-    Re = 4.0
+    Re = 4.7
     
     # initialise
-    lp = calcLumpedParams("codelibpython/dsp_bass/impedTestData/testData.npz", VoltsPeakAmp, Bl, Mmc)
+    lp = calcLumpedParams("codelibpython/dsp_bass/impedTestData/01_ALB_IMP_DEQ_reformatted.npz", 
+                          VoltsPeakAmp, Bl, Mmc, Re=Re)
     
     # create parameter for a closed box
     params = lp.calcParams("closed box")

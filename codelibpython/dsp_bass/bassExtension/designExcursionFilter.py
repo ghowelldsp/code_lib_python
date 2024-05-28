@@ -112,9 +112,6 @@ def _fitToSealed(paramsEst:np.array,
             peq1B, peq1A = dspm.parametricEq(peq1Fc, peq1Q, peq1Gain, fs)
             peq2B, peq2A = dspm.parametricEq(peq2Fc, peq2Q, peq2Gain, fs)
             
-            # form sos matrux
-            sos = np.array([[lpB, lpA], [peq1B, peq1A], [peq2B, peq2A]])
-            
             # form sos matrix
             sos = np.zeros([3,6])
             sos[0,0:3] = lpB
@@ -125,7 +122,7 @@ def _fitToSealed(paramsEst:np.array,
             sos[2,3:6] = peq2A
             
     # calc transfer function of filters
-    H = gain * sig.sosfreqz(sos, fVec, fs)[1]
+    H = gain * sig.sosfreqz(sos, fVec, fs=fs)[1]
 
     # calculate weights                          
     weights = np.abs(excurNorm)**1; # TODO - 1/f
@@ -182,7 +179,8 @@ def designExcursionFilter(fVec,
             
             # optimisation function to find fitted filter parameters
             args = (filterType, fVec, excurNorm, fs)
-            fittedData = opt.fmin(_costFunction, paramsEst, args=args, xtol=1e-10, ftol=1e-6, maxiter=10e3, maxfun=10e3, full_output=True)
+            # fittedData = opt.fmin(_costFunction, paramsEst, args=args, xtol=1e-10, ftol=1e-6, maxiter=10e3, maxfun=10e3, full_output=True)
+            fittedData = opt.fmin(_costFunction, paramsEst, args=args, full_output=True)
             
             # runs fitted params through function to get final sos matrix and gain value
             H, weights, sos, gain = _fitToSealed(fittedData[0], filterType, fVec, excurNorm, fs)
@@ -196,14 +194,12 @@ def designExcursionFilter(fVec,
 
     if plotData:
         
-        H = excurGain * sig.sosfreqz(sos, fVec, fs=fs)[1]
-        
         # calculate overall transfer function
-        H = gain * sig.sosfreqz(sos, fVec, fs)[1]
+        H = gain * sig.sosfreqz(sos, fVec, fs=fs)[1]
     
         # calculate individual transfer functions of lp and peq filters used
-        Hlp = sig.sosfreqz(sos[0,:], fVec, fs)[1]
-        Hpeq = gain * sig.sosfreqz(sos[1,:], fVec, fs)[1]
+        Hlp = sig.sosfreqz(sos[0,:], fVec, fs=fs)[1]
+        Hpeq = gain * sig.sosfreqz(sos[1,:], fVec, fs=fs)[1]
 
         # plot data
         plt.figure()
@@ -228,6 +224,7 @@ def designExcursionFilter(fVec,
         plt.semilogx(fVec, np.abs(Hlp), label='Hlp')
         plt.semilogx(fVec, np.abs(Hpeq), label='Hpeq')
         plt.semilogx(fVec, np.abs(Hlp * Hpeq), label='Htot')
+        plt.legend()
         plt.grid()
         plt.title('Fitted Displacement')
         plt.xlabel('frequency [Hz]')
@@ -241,6 +238,8 @@ def designExcursionFilter(fVec,
         plt.xlabel('frequency [Hz]')
         plt.ylabel('magnitude [dB]')
         plt.xlim(fVec[0], fVec[-1])
+        
+    return sos, gain, norm2mmGain
     
 # if __name__ == "__main__":
     

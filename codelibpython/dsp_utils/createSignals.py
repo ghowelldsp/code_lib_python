@@ -58,7 +58,7 @@ if __name__ == "__main__":
     
     import matplotlib.pyplot as plt
     
-    nSignals = 2
+    nSignals = 1
     fs = 48000
     N = 256
     f = [1000, 2000]

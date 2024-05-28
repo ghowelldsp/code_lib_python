@@ -93,13 +93,21 @@ def _hpShelfFilters(bAlignZ:np.array,
     # TODO - the a coefficient are taken from different sections when the should be from the same row. Need to see why
     # the matlab implimentation is different
     
+    # # get 1st order shelf
+    # bShelf = sos[0,0:3]
+    # aShelf = sos[1,3:6]
+
+    # # get 2nd order highpass coefficients
+    # bHp = sos[1,0:3]
+    # aHp = sos[0,3:6]
+    
     # get 1st order shelf
     bShelf = sos[0,0:3]
-    aShelf = sos[1,3:6]
+    aShelf = sos[0,3:6]
 
     # get 2nd order highpass coefficients
     bHp = sos[1,0:3]
-    aHp = sos[0,3:6]
+    aHp = sos[1,3:6]
     
     # find the gain of the hp filter at the top end of the frequency spectrum where the gain is maximally flat
     freq = 0.9 * fs/2                                                        
@@ -228,7 +236,8 @@ def designXeqIeqFilters(bAlignS:np.array,
     
     if plot:
         # create frequency vector
-        fVec = np.linspace(10, fs/2, 1000)
+        # TODO - create log vector, and move into parent class
+        fVec = np.linspace(10, fs/2, 10000)
     else:
         fVec = None
     
