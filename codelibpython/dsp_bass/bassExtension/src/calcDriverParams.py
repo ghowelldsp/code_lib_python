@@ -12,43 +12,6 @@ import scipy.optimize as opt
 import matplotlib.pyplot as plt
 
 import codelibpython.maths as math
-
-# class calcLumpedParams:
-    
-#     def __init__(self, 
-#                  impedFileName:str,
-#                  VoltsPeakAmp,
-#                  Bl,
-#                  Mmc,
-#                  Re:float=None):
-        
-#         # import data
-#         self.impedFileName = impedFileName
-#         impedData = np.load(impedFileName, allow_pickle=True)
-        
-#         # create empty data sets
-#         self.measuredData = {}
-#         self.estimatedParams = {}
-#         self.finalParams = {}
-#         self.driverParams = {}
-        
-#         # assign local params
-#         self.measuredData['fVec'] = impedData['f']
-#         self.measuredData['Z'] = impedData['Z']
-#         self.measuredData['VoltsPeakAmp'] = VoltsPeakAmp
-#         self.measuredData['Bl'] = Bl
-#         self.measuredData['Mmc'] = Mmc
-        
-#         # if no Re value is input pick it from the lowest value of the measures impedance
-#         if (Re == None):
-#             freqMin = impedData['f'][0]
-#             ReMin = np.real(impedData['Z'][0])
-#             self.finalParams['Re'] = ReMin
-#             print(f'No Re value input, Re selected from lowest measured impedance')
-#             print(f'\t Re = {ReMin}')
-#             print(f'\t Freq = {freqMin}')
-#         else:
-#             self.finalParams['Re'] = Re
         
 def _findPeaks(fVec:np.array,
                Himp:np.array,

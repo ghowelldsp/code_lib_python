@@ -144,7 +144,7 @@ def _costFunction(paramsEst:np.array,
     
     return sqSumErr
         
-def designExcursionFilter(fVec,
+def calcExcursionFilter(fVec,
                           excur,
                           wc,
                           excurGain,
