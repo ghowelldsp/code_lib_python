@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-A collection of basic maths functions.
+Decibel functions
 
 @author: G. Howell
 """

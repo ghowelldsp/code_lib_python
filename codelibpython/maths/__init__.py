@@ -1,4 +1,4 @@
 from .correlation import corrMatrix
 from .correlation import corrVector
-from .basic import linToDb
-from .basic import dbToLin
+from ..dsp_maths.decibels import linToDb
+from ..dsp_maths.decibels import dbToLin

@@ -8,7 +8,7 @@ Bass Extension
 
 import numpy as np
 
-from . import lumpedParam as lp
+import src.calcDriverParams as cdp
 
 class bassExtensionParams():
     
@@ -22,7 +22,7 @@ class bassExtensionParams():
         # TODO implement
         pass
         
-    def calcLumpedParams(self,
+    def calcDriverParams(self,
                          filename:str,
                          voltsPeakAmp:float,
                          Bl:float,
@@ -30,7 +30,7 @@ class bassExtensionParams():
                          Re:float=None,
                          plot:bool=False,
                          writeToFile:bool=False):
-        """ Calculate Lumped Parameters
+        """ Calculate Driver Parameters
 
         Parameters
         ----------
@@ -43,8 +43,8 @@ class bassExtensionParams():
         Mmc : float
             Moving mass [g].
         Re : float
-            Electrical resistance [Ohms]. Note, if this is left as None then the resistance is calculated from the lowest
-            frequency point from the measured impedance.
+            Electrical resistance [Ohms]. Note, if this is left as None then the resistance is calculated from the 
+            lowest frequency point from the measured impedance.
         plot : bool, optional
             Plot data. Defaults to False.
         writeToFile : bool
@@ -55,13 +55,13 @@ class bassExtensionParams():
         impedData = np.load(filename, allow_pickle=True)
         
         # calculate parameters
-        self.lumpParams = lp.calcLumpedParams(impedData['f'], impedData['Z'], voltsPeakAmp, Bl, Mmc, Re, plot=plot)
+        self.driverParams = cdp.calcLumpedParams(impedData['f'], impedData['Z'], voltsPeakAmp, Bl, Mmc, Re, plot=plot)
         
         if writeToFile:
             # TODO
             pass
         
-    def calcTuningParams():
+    def calcBassExtensionParams():
 
         # TODO - implement
         pass
@@ -82,9 +82,10 @@ if __name__ == "__main__":
     Mmc = 0.010
     Re = 4.7
     
-    # calc lumped parameters
-    bassExt.calcLumpedParams(impFile, voltsPeakAmp, Bl, Mmc, Re, plot=True, writeToFile=False)
+    # calc driver parameters
+    bassExt.calcDriverParams(impFile, voltsPeakAmp, Bl, Mmc, Re, plot=True, writeToFile=False)
     
-    # TODO - run calculate tuning parameters model
+    # calculate bass extension parameters
+    bassExt.calcBassExtensionParams()
 
     print('\nFinished\n')

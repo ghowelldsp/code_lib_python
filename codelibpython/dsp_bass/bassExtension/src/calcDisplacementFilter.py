@@ -144,16 +144,15 @@ def _costFunction(paramsEst:np.array,
     
     return sqSumErr
         
-def calcExcursionFilter(fVec,
-                          excur,
-                          wc,
-                          excurGain,
-                          excurMm,
-                        #   HieqExcurOffset,
-                          filterType,
-                          enclosureType,
-                          fs,
-                          plotData:bool=False):
+def calcDisplacementFilter(fVec,
+                           excur,
+                           wc,
+                           excurGain,
+                           excurMm,
+                           filterType,
+                           enclosureType,
+                           fs,
+                           plotData:bool=False):
     
     # normalised excursion
     excurNorm = excur * wc**2

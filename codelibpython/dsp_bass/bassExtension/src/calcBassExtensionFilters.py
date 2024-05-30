@@ -9,8 +9,7 @@ import scipy.signal as sig
 import matplotlib.pyplot as plt
 import scipy.signal._filter_design as fd
 
-import calcExcursionFilter as cef
-import codelibpython.dsp_bass.bassExtension.src.calcExcursionFilter as defi
+import src.calcDisplacementFilter as cdf
 import codelibpython.dsp_maths as dspm
 
 def _calcAlignmentFlt(alignB:np.array,
@@ -35,7 +34,7 @@ def _calcAlignmentFlt(alignB:np.array,
 
     Returns
     -------
-    TODO
+    # TODO
     """
     
     # calculate discrete coefficients using bilinear transform
@@ -168,7 +167,8 @@ def _calcHpShelfFlt(bAlignZ:np.array,
         plt.figure()
         
         plt.subplot(2,1,1)
-        plt.semilogx(fVec, 20*np.log10(Halign), '--', label='alignment')
+        # TODO - convert alll logs to linToDb
+        plt.semilogx(fVec, dspm.linToDb(Halign), '--', label='alignment')
         plt.semilogx(fVec, 20*np.log10(Hhp), label='highpass')
         plt.semilogx(fVec, 20*np.log10(Hshelf), label='shelf')
         plt.legend()
@@ -274,8 +274,9 @@ def _calcMaxRmsXeqFilter(self,
                          gainToMm:float,
                          bIeq:np.array,
                          aIeq:np.array,
-                         extFcLow:float,
-                         extQ:float,
+                         aHp:np.array,
+                         fcLowExt:float,
+                         qExt:float,
                          voltsPeakAmp:float,
                          maxDispLimit:float,
                          maxVoltLimit:float,
@@ -301,9 +302,11 @@ def _calcMaxRmsXeqFilter(self,
         1D array of inductance b coefficients. In the form [b0, b1, b2].
     aInd : np.array
         1D array of inductance a coefficients. In the form [a0, a1, a2].
-    extFcLow : float
+    aHp : np.array
+        # TODO
+    fcLowExt : float
         Lowest cutoff frequency of the desired extension filter.
-    extQ : float
+    qExt : float
         Quality (Q) value of desired extension filter.
     voltsPeakAmp : float
         Voltage level a maximum gain.
@@ -329,7 +332,7 @@ def _calcMaxRmsXeqFilter(self,
     # initialise variables
     maxDisp = np.inf
     maxVolts = np.inf
-    fcHigh = extFcLow
+    fcHigh = fcLowExt
     
     # calculate displacement and voltage for increasing cutoff frequencies untill limits have been met
     while not((maxDisp <= maxDispLimit) and (maxVolts <= maxVoltLimit)):
@@ -338,9 +341,7 @@ def _calcMaxRmsXeqFilter(self,
         fcHigh = fcHigh + 0.5;
         
         # calculate extension filter
-        _, _, bXeqHigh, aXeqHigh = dxif.designXeqIeqFilters(self.driverParams['bAlign'], 
-                                                            self.driverParams['aAlign'], 
-                                                            fcHigh, extQ, self.fs)           
+        _, _, bXeqHigh, aXeqHigh = _createExtensionFlt(aHp, fcHigh, qExt, self.fs)           
         HxeqHigh = sig.freqz(bXeqHigh, aXeqHigh, fVec, fs=self.fs)[1]
         
         # # determine TF of HP reference filter (for plotting)
@@ -393,89 +394,87 @@ def _calcMaxRmsXeqFilter(self,
     
     return fcHigh
     
-def _rmsThreshold():
+def _rmsThreshold(bExtLo,
+                  aExtLo,
+                  bExtHi,
+                  aExtHi,
+                  bInd,
+                  aInd,
+                  Hdisp,
+                  voltsPeakAmp,
+                  maxDispLimit,
+                  maxVoltLimit,
+                  fVec,
+                  fs,
+                  plot):
     
-    # IEQ and XEQ low rms fitler tf's
-    [H_xeqLoRms] = freqz(bXeqLo, aXeqLo, freqArr, obj.fs)
-    [H_xeqHiRms] = freqz(bXeqHI, aXeqHI, freqArr, obj.fs)
-    [H_ieq] = freqz(bIeq, aIeq, freqArr, obj.fs)
+    # create extension and inductance filterss
+    HextLoRms = sig.freqz(bExtLo, aExtLo, fVec, fs=fs)[1]
+    HextHiRms = sig.freqz(bExtHi, aExtHi, fVec, fs=fs)[1]
+    Hind = sig.freqz(bInd, aInd, fVec, fs=fs)[1]
     
     # finds 2 index values of the frequency vector that are closest to 20Hz 
-    idx = find(freqArr >= 20, 2)
+    fVecIdx = (fVec[fVec >= 20])[0:2]
     
     # array of amplitude values
-    amps = linspace(0, 1.2, 2000)'
+    nAmps = 2000
+    amps = np.linspace(0, 1.2, nAmps)
 
     # loop through amplitudes until A needs to start proctecting the output (that will be the threshold)
     
     # determines the max mm and max voltage at the various amplitude levels, stops once the max mm or volts level is 
     # reached with the resulting amplitude being used as the threshold
-    for n=2:length(amps)
+    for i in range(nAmps-1):
         
-        % calculate max mm and volts
-        mm = max(abs(H_xeqLoRms(idx) .* H_ieq(idx) .* Hexcur(idx) *  exc2mmGain)) * amps(n);
-        Vp = max(abs(H_xeqLoRms(idx) .* H_ieq(idx) * obj.VoltsPeakAmp)) * amps(n);
+        # calculate max mm and volts
+        maxDisp = np.max(np.abs(HextLoRms[fVecIdx] * Hind[fVecIdx] * Hdisp[fVecIdx] *  exc2mmGain)) * amps[i+1]
+        maxVolts = np.max(np.abs(HextLoRms[fVecIdx] * Hind[fVecIdx] * voltsPeakAmp)) * amps[i+1]
         
-        % check mm and volt limits
-        if (mm>MaxmmPk || Vp>MaxVPk)
-            threshold = amps(n - 1);
-            break;
-        end
-    end
+        # check mm and volt limits
+        if ((maxDisp <= maxDispLimit) and (maxVolts <= maxVoltLimit)):
+            threshold = amps(i-1)
+            break
 
-    % determine gradient and y intercept
-    m = (1 - 0)/(1 - threshold); % dy/dx
-    b = 1 - m;
+    # determine gradient and y intercept
+    m = (1 - 0)/(1 - threshold)
+    b = 1 - m
     
-    % write output data to IO struct
-    IO.lower = 0;
-    IO.upper = 1;
-    IO.gradient = m;
-    IO.y_intercept = b;
-    IO.threshold = threshold;
+    # figure out gain of an equivalent HPF with the same poles as poleExt
+    kLow = np.abs(poleExt)
+    kLowInv = 1 / kLow;
     
-    % Figure out gain of an equivalent HPF with the same poles as poleXeq
-    k_low = sqrt(real(poleXeq)^2 + imag(poleXeq)^2);                % TODO - need to look at in more detail
-    k_low_inv = 1/k_low;
-
-    % also in IO is this
-    IO.k_low = k_low;
-    IO.k_low_inv = k_low_inv;
-    IO.k_alpha = 1.0;
-    
-    % plotting
-    if obj.deqPlotFlgArr(3)
+    if plot:
+        
         y = m*amps + b;
 
-        figure('Name', 'DEQ THRES: Input vs Output Levels', 'NumberTitle', 'off', 'windowstyle', 'docked')
-        plot(db(amps),y)
-        grid on
-        xlabel('RMS Amplitude [dB FS]')
-        ylabel('Low (0) -> High (1) RMS DEQ Filter')
-        title('RMS Ampitude / Filter Type Determination')
-        ylim([0 1])
-    end     
+        plt.figure('Name', 'DEQ THRES: Input vs Output Levels', 'NumberTitle', 'off', 'windowstyle', 'docked')
+        plt.plot(amps, y)
+        plt.grid()
+        plt.xlabel('RMS Amplitude [dB FS]')
+        plt.ylabel('Low (0) -> High (1) RMS DEQ Filter')
+        plt.title('RMS Ampitude / Filter Type Determination')
+        plt.ylim(0, 1)
     
-def calcBassExtensionFlts(self,
-                ftLow,
-                Qt,
-                maxMmPeak,
-                maxVoltPeak,
-                attackTime,
-                releaseTime,
-                rmsAttackTime,
-                dropIeq,
-                plot:bool=False):
+def calcBassExtensionFilters(driverParams,
+                             fcLowExt,
+                             qExt,
+                             maxMmPeak,
+                             maxVoltPeak,
+                             attackTime,
+                             releaseTime,
+                             rmsAttackTime,
+                             dropIeq,
+                             plot:bool=False):
     
     if plot:
         # create frequency vector
-        # TODO - create log vector, and move into parent class
+        # TODO - create log vector
         fVec = np.linspace(10, fs/2, 10000)
     else:
         fVec = None
     
     # calculate alignment
-    bAlignZ, aAlignZ = _calcAlignmentFlt(alignB, alignA, fs, fVec, plot)
+    bAlignZ, aAlignZ = _calcAlignmentFlt(driverParams['bAlign'], driverParams['aAlign'], fs, fVec, plot)
     
     # calculate highpass shelf filter (used to create inductance filter)
     bShelf, aShelf, bHp, aHp = _calcHpShelfFlt(bAlignZ, aAlignZ, fs, fVec, plot)
@@ -484,23 +483,23 @@ def calcBassExtensionFlts(self,
     bIeq, aIeq = _createInductanceFlt(bShelf, aShelf, fs, fVec, plot)
     
     # create extension filter
-    bXeq, aXeq = _createExtensionFlt(aHp, extFc, extQ, fs, fVec, plot)
+    bXeq, aXeq = _createExtensionFlt(aHp, fcLowExt, qExt, fs, fVec, plot)
     
     # TODO - impliment drop inductance filter
     
     # calculate displacement filter
-    sos, gain, norm2mmGain = cef.calcExcursionFilter(self.driverParams['fVec'], self.driverParams['Hdisp'], self.driverParams['w0'],
-                                                     self.driverParams['HdispGain'], self.driverParams['HdispMm'], filterType='lppeq',
-                                                     enclosureType='sealed', fs=fs, plotData=False)
+    sosExcur, gain, norm2mmGain = cdf.calcExcursionFilter(driverParams['fVec'], driverParams['Hdisp'], driverParams['w0'],
+                                                          driverParams['HdispGain'], driverParams['HdispMm'], filterType='lppeq',
+                                                          enclosureType='sealed', fs=fs, plotData=False)
     
     # calculate excursion filter when for a maximum rms input level
-    _calcMaxRmsXeqFilter(fVec, sos, gain, norm2mmGain, bIeq, aIeq, ftLow, Qt, self.driverParams['VoltsPeakAmp'],
+    _calcMaxRmsXeqFilter(fVec, sosExcur, gain, norm2mmGain, bIeq, aIeq, aHp, ftLow, Qt, driverParams['VoltsPeakAmp'],
                          maxMmPeak, maxVoltPeak, plotData=True)
     
     # TODO calculate attack release coefficients
     
-    # calculate
-    # _rms()
+    # calculate rms threshold level
+    _rmsThreshold()
                 
     if plot:
         plt.show()
