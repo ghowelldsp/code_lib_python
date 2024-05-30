@@ -1,1 +1,1 @@
-from .biquad import biquad
+from .biquad import biquadFilter

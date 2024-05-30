@@ -9,8 +9,8 @@ import scipy.signal as sig
 import matplotlib.pyplot as plt
 import scipy.signal._filter_design as fd
 
-import src.calcDisplacementFilter as cdf
 import codelibpython.dsp_maths as dspm
+import calcDisplacementFilter as cdf
 
 def _calcAlignmentFlt(alignB:np.array,
                       alignA:np.array,
@@ -87,10 +87,10 @@ def _calcAlignmentFlt(alignB:np.array,
         
         # plot data
         plt.figure()
-        plt.semilogx(fVec, 20*np.log10(Hcont), label='continuous')
-        plt.semilogx(fVec, 20*np.log10(Hdisc), label='discrete')
-        plt.semilogx(fVec, 20*np.log10(Halign), label='alignment')
-        plt.semilogx(fVec, 20*np.log10(HNyq), label='nyquist')
+        plt.semilogx(fVec, dspm.linToDb(Hcont), label='continuous')
+        plt.semilogx(fVec, dspm.linToDb(Hdisc), label='discrete')
+        plt.semilogx(fVec, dspm.linToDb(Halign), label='alignment')
+        plt.semilogx(fVec, dspm.linToDb(HNyq), label='nyquist')
         plt.legend()
         plt.grid()
         plt.title('Alignment')
@@ -103,7 +103,7 @@ def _calcAlignmentFlt(alignB:np.array,
 
 def _calcHpShelfFlt(bAlignZ:np.array,
                     aAlignZ:np.array,
-                    fs:int,
+                    fs:float,
                     fVec:np.array,
                     plot:bool=False):
     """ Calculate Highpass Shelf Filter
@@ -169,8 +169,8 @@ def _calcHpShelfFlt(bAlignZ:np.array,
         plt.subplot(2,1,1)
         # TODO - convert alll logs to linToDb
         plt.semilogx(fVec, dspm.linToDb(Halign), '--', label='alignment')
-        plt.semilogx(fVec, 20*np.log10(Hhp), label='highpass')
-        plt.semilogx(fVec, 20*np.log10(Hshelf), label='shelf')
+        plt.semilogx(fVec, dspm.linToDb(Hhp), label='highpass')
+        plt.semilogx(fVec, dspm.linToDb(Hshelf), label='shelf')
         plt.legend()
         plt.grid()
         plt.title('HP & Shelf TFs')
@@ -179,10 +179,10 @@ def _calcHpShelfFlt(bAlignZ:np.array,
         plt.xlim(fVec[0], fVec[-1])
         
         plt.subplot(2,1,2)
-        plt.semilogx(fVec, 20*np.log10(Hhp), 'b--', label='highpass')
-        plt.semilogx(fVec, 20*np.log10(Hshelf), 'g--', label='shelf')
-        plt.semilogx(fVec, 20*np.log10(HhpNorm), 'b', label='highpass norm')
-        plt.semilogx(fVec, 20*np.log10(HshelfNorm), 'g', label='shelf norm')
+        plt.semilogx(fVec, dspm.linToDb(Hhp), 'b--', label='highpass')
+        plt.semilogx(fVec, dspm.linToDb(Hshelf), 'g--', label='shelf')
+        plt.semilogx(fVec, dspm.linToDb(HhpNorm), 'b', label='highpass norm')
+        plt.semilogx(fVec, dspm.linToDb(HshelfNorm), 'g', label='shelf norm')
         plt.legend()
         plt.grid()
         plt.title('HP & Shelf Normalised TFs')
@@ -200,75 +200,74 @@ def _createInductanceFlt(bShelf:np.array,
                          plot:bool=False):
     
     # invert shelf filter to form the ieq filter (inductance shelf compensation)
-    bIeq = aShelf
-    aIeq = bShelf
+    bInd = aShelf
+    aInd = bShelf
 
     # scale coefficients to make a0 = 1
-    bIeq = bIeq / aIeq[0]; 
-    aIeq = aIeq / aIeq[0];
+    bInd = bInd / aInd[0]; 
+    aInd = aInd / aInd[0];
 
     # check to see if the resulting ieq filter is stable
     # TODO - should this check for min phase too?
-    if not dspm.isStable(aIeq):
+    if not dspm.isStable(aInd):
         raise ValueError('Error: Ieq filter is unstable')
         
     if plot:
         # calculate frequency responses
         Hshelf = sig.freqz(bShelf, aShelf, fVec, fs=fs)[1]
-        Hieq = sig.freqz(bIeq, aIeq, fVec, fs=fs)[1]
+        Hind = sig.freqz(bInd, aInd, fVec, fs=fs)[1]
         
         # plot the 
         plt.figure()
-        plt.semilogx(fVec, 20*np.log10(Hshelf), '--', label='shelf')
-        plt.semilogx(fVec, 20*np.log10(Hieq), label='Ieq')
+        plt.semilogx(fVec, dspm.linToDb(Hshelf), '--', label='shelf')
+        plt.semilogx(fVec, dspm.linToDb(Hind), label='inductance')
         plt.legend()
         plt.grid()
-        plt.title('Ieq Filter')
+        plt.title('Inductance Filter')
         plt.xlabel('freq [Hz]')
         plt.ylabel('magnitude [dB]')
         plt.xlim(fVec[0], fVec[-1])
     
-    return bIeq, aIeq
+    return bInd, aInd
 
 def _createExtensionFlt(aHp:np.array,
-                        ft:float,
-                        Qt:float,
+                        fcExt:float,
+                        qExt:float,
                         fs:int,
                         fVec:np.array,
                         plot:bool=False):
     
     # create 2nd order reference filter coefficients
-    bHpRef, aHpRef = dspm.createFlt2ndOrderZ(ft, Qt, fs, filterType='highpass');
+    bHpRef, aHpRef = dspm.createFlt2ndOrderZ(fcExt, qExt, fs, filterType='highpass');
 
     # xeq (cancel original pole, and add extension pole, assume zeros the same)
-    bXeq = aHp;
-    aXeq = aHpRef;
+    bExt = aHp;
+    aExt = aHpRef;
 
     # check to see if the resulting xeq filter is stable
     # TODO - should this check for min phase too?
-    if not dspm.isStable(aXeq):
+    if not dspm.isStable(aExt):
         raise ValueError('Error: Xeq filter is unstable')
     
     if plot:
         # calculate frequency responses
         Hhp = sig.freqz(bHpRef, aHpRef, fVec, fs=fs)[1]
-        Hxeq = sig.freqz(bXeq, aXeq, fVec, fs=fs)[1]
+        Hxeq = sig.freqz(bExt, aExt, fVec, fs=fs)[1]
         
         # plot the 
         plt.figure()
-        plt.semilogx(fVec, 20*np.log10(Hhp), '--', label='highpass')
-        plt.semilogx(fVec, 20*np.log10(Hxeq), label='Xeq')
+        plt.semilogx(fVec, dspm.linToDb(Hhp), '--', label='highpass')
+        plt.semilogx(fVec, dspm.linToDb(Hxeq), label='extension')
         plt.legend()
         plt.grid()
-        plt.title('Ieq Filter')
+        plt.title('Extension Filter')
         plt.xlabel('freq [Hz]')
         plt.ylabel('magnitude [dB]')
         plt.xlim(fVec[0], fVec[-1])
         
-    return bXeq, aXeq
+    return bExt, aExt
 
-def _calcMaxRmsXeqFilter(self,
-                         fVec:np.array,
+def _calcMaxRmsXeqFilter(fVec:np.array,
                          sos:np.array,
                          gain:float,
                          gainToMm:float,
@@ -280,6 +279,7 @@ def _calcMaxRmsXeqFilter(self,
                          voltsPeakAmp:float,
                          maxDispLimit:float,
                          maxVoltLimit:float,
+                         fs:float,
                          plotData:bool=True):
     """ Calculate Max RMS Extension Filter
     
@@ -314,6 +314,8 @@ def _calcMaxRmsXeqFilter(self,
         Maximum displacement limit. # TODO - find out if this is mm
     maxVoltLimit : float
         Maximum voltage limit.
+    fs : int
+        Samples rate [Hz].
     plot : bool, optional
         Plot data. Defaults to False.
 
@@ -326,8 +328,8 @@ def _calcMaxRmsXeqFilter(self,
     fVecLimIdx = (fVec > 10) & (fVec < 200)
     
     # displacement and ieq filters
-    HdispMmTmp = gainToMm * gain * sig.sosfreqz(sos, fVec, fs=self.fs)[1]
-    Hieq = sig.freqz(bIeq, aIeq, fVec, fs=self.fs)[1]
+    HdispMmTmp = gainToMm * gain * sig.sosfreqz(sos, fVec, fs=fs)[1]
+    Hieq = sig.freqz(bIeq, aIeq, fVec, fs=fs)[1]
     
     # initialise variables
     maxDisp = np.inf
@@ -341,8 +343,8 @@ def _calcMaxRmsXeqFilter(self,
         fcHigh = fcHigh + 0.5;
         
         # calculate extension filter
-        _, _, bXeqHigh, aXeqHigh = _createExtensionFlt(aHp, fcHigh, qExt, self.fs)           
-        HxeqHigh = sig.freqz(bXeqHigh, aXeqHigh, fVec, fs=self.fs)[1]
+        bExtHigh, aExtHigh = _createExtensionFlt(aHp, fcHigh, qExt, fs, fVec)           
+        HextHigh = sig.freqz(bExtHigh, aExtHigh, fVec, fs=fs)[1]
         
         # # determine TF of HP reference filter (for plotting)
         # TODO - used for the animation plot
@@ -350,11 +352,11 @@ def _calcMaxRmsXeqFilter(self,
         # HhpRef = sig.freqz(bHpRef, aHpRef, fVec, fs=self.fs)[1]
         
         # calculate maximum displacement in mm
-        HdispMm = HxeqHigh * Hieq * HdispMmTmp
+        HdispMm = HextHigh * Hieq * HdispMmTmp
         maxDisp = np.max(np.abs(HdispMm[fVecLimIdx]))
         
         # calculate maximum voltage
-        Hvolts = HxeqHigh * Hieq * voltsPeakAmp
+        Hvolts = HextHigh * Hieq * voltsPeakAmp
         maxVolts = np.max(np.abs(Hvolts[fVecLimIdx]))
         
     # plotting
@@ -404,6 +406,8 @@ def _rmsThreshold(bExtLo,
                   voltsPeakAmp,
                   maxDispLimit,
                   maxVoltLimit,
+                  exc2mmGain,
+                  poleExt,
                   fVec,
                   fs,
                   plot):
@@ -455,51 +459,56 @@ def _rmsThreshold(bExtLo,
         plt.title('RMS Ampitude / Filter Type Determination')
         plt.ylim(0, 1)
     
-def calcBassExtensionFilters(driverParams,
-                             fcLowExt,
-                             qExt,
-                             maxMmPeak,
-                             maxVoltPeak,
-                             attackTime,
-                             releaseTime,
-                             rmsAttackTime,
-                             dropIeq,
+def calcBassExtensionFilters(driverParams:dict,
+                             fcLowExt:float,
+                             qExt:float,
+                             maxMmPeak:float,
+                             maxVoltPeak:float,
+                             attackTime:float,
+                             releaseTime:float,
+                             rmsAttackTime:float,
+                             fs:float,
+                             dropIeq:bool=False,
                              plot:bool=False):
-    
-    if plot:
+
+    # TODO - fix once tested    
+    # if plot:
+    if True:
         # create frequency vector
         # TODO - create log vector
         fVec = np.linspace(10, fs/2, 10000)
     else:
         fVec = None
+        
+    # TODO - update plot - True, etc
     
     # calculate alignment
-    bAlignZ, aAlignZ = _calcAlignmentFlt(driverParams['bAlign'], driverParams['aAlign'], fs, fVec, plot)
+    bAlignZ, aAlignZ = _calcAlignmentFlt(driverParams['bAlign'], driverParams['aAlign'], fs, fVec, plot=False)
     
     # calculate highpass shelf filter (used to create inductance filter)
-    bShelf, aShelf, bHp, aHp = _calcHpShelfFlt(bAlignZ, aAlignZ, fs, fVec, plot)
+    bShelf, aShelf, bHp, aHp = _calcHpShelfFlt(bAlignZ, aAlignZ, fs, fVec, plot=False)
     
     # create inducatance filter
-    bIeq, aIeq = _createInductanceFlt(bShelf, aShelf, fs, fVec, plot)
+    bInd, aInd = _createInductanceFlt(bShelf, aShelf, fs, fVec, plot=False)
     
     # create extension filter
-    bXeq, aXeq = _createExtensionFlt(aHp, fcLowExt, qExt, fs, fVec, plot)
+    bExt, aExt = _createExtensionFlt(aHp, fcLowExt, qExt, fs, fVec, plot=False)
     
     # TODO - impliment drop inductance filter
     
     # calculate displacement filter
-    sosExcur, gain, norm2mmGain = cdf.calcExcursionFilter(driverParams['fVec'], driverParams['Hdisp'], driverParams['w0'],
-                                                          driverParams['HdispGain'], driverParams['HdispMm'], filterType='lppeq',
-                                                          enclosureType='sealed', fs=fs, plotData=False)
+    sosExcur, gain, norm2mmGain = cdf.calcDisplacementFilter(driverParams['fVec'], driverParams['Hdisp'], driverParams['w0'],
+                                                             driverParams['HdispGain'], driverParams['HdispMm'], filterType='lppeq',
+                                                             enclosureType='sealed', fs=fs, plot=True)
     
     # calculate excursion filter when for a maximum rms input level
-    _calcMaxRmsXeqFilter(fVec, sosExcur, gain, norm2mmGain, bIeq, aIeq, aHp, ftLow, Qt, driverParams['VoltsPeakAmp'],
-                         maxMmPeak, maxVoltPeak, plotData=True)
+    _calcMaxRmsXeqFilter(fVec, sosExcur, gain, norm2mmGain, bInd, aInd, aHp, fcLowExt, qExt, driverParams['voltsPeakAmp'],
+                         maxMmPeak, maxVoltPeak, fs, plotData=True)
     
     # TODO calculate attack release coefficients
     
     # calculate rms threshold level
-    _rmsThreshold()
+    # _rmsThreshold()
                 
     if plot:
         plt.show()
@@ -511,15 +520,16 @@ if __name__ == "__main__":
     # general parameters
     fs = 48000
     
-    # measured params
-    VoltsPeakAmp = 17.9 * np.sqrt(2)
-    Bl = 5.184
-    Mmc = 0.010
-    Re = 4.7
+    # measured params 
+    # TODO - not needed remove
+    # VoltsPeakAmp = 17.9 * np.sqrt(2)
+    # Bl = 5.184
+    # Mmc = 0.010
+    # Re = 4.7
     
     # tuning parameters
-    ftLow = 40
-    Qt = 0.65
+    fcLowExt = 40
+    qExt = 0.65
     maxMmPeak = 1.4
     maxVoltPeak = 20 # TODO - needs implimenting
     attackTime = 0.001
@@ -527,12 +537,26 @@ if __name__ == "__main__":
     rmsAttackTime = 0.005
     dropIeq = False
     
-    # initialise
-    # TODO - what is volts peak, etc, doing here? not used?
-    # lp = calcBassExtParams('codelibpython/dsp_bass/impedTestData/driverParams.npy', VoltsPeakAmp, Bl, Mmc, fs)
-    lp = calcBassExtensionFlts('scratch/01_ALB_IMP_DEQ_reformatted_lp.mat', VoltsPeakAmp, Bl, Mmc, fs)
+    # TODO - temp for testing form matlab file
+    from pymatreader import read_mat
+    data = read_mat('../impedTestData/01_ALB_IMP_DEQ_reformatted_lp.mat')['impDataLumpParams']
     
-    # create parameter for a closed box
-    params = lp.calcParams(ftLow, Qt, maxMmPeak, maxVoltPeak, attackTime, releaseTime, rmsAttackTime, dropIeq, plotData=True)
+    # TODO - check if all these params are needed
+    driverParams = {
+        'fVec' : data['deqParams']['alignment']['freq'],
+        'w0' : data['deqParams']['enclosure']['wc'],
+        'bAlign' : data['deqParams']['alignment']['num2'],
+        'aAlign' : data['deqParams']['alignment']['den2'],
+        'Hdisp' : data['deqParams']['alignment']['excursion'],
+        'HdispGain' : data['fitImpData']['excurGain'],
+        'HdispMm' : data['fitImpData']['excurMm'],
+        'voltsPeakAmp' : data['klipParams']['VoltsPeakAmp']
+    }
+    
+    # run model
+    calcBassExtensionFilters(driverParams, fcLowExt, qExt, maxMmPeak, maxVoltPeak, attackTime, releaseTime, 
+                             rmsAttackTime, fs)
+    
+    plt.show()
     
     print('\nFinished\n')

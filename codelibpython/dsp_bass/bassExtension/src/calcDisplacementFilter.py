@@ -152,7 +152,7 @@ def calcDisplacementFilter(fVec,
                            filterType,
                            enclosureType,
                            fs,
-                           plotData:bool=False):
+                           plot:bool=False):
     
     # normalised excursion
     excurNorm = excur * wc**2
@@ -191,7 +191,7 @@ def calcDisplacementFilter(fVec,
         case _:
             raise ValueError('Error: invalid enclosureType')
 
-    if plotData:
+    if plot:
         
         # calculate overall transfer function
         H = gain * sig.sosfreqz(sos, fVec, fs=fs)[1]
@@ -231,7 +231,7 @@ def calcDisplacementFilter(fVec,
         plt.xlim(fVec[0], fVec[-1])
         
         plt.subplot(2,2,4)
-        plt.semilogx(fVec, 20*np.log10(H / excurNorm), label='dispNorm')
+        plt.semilogx(fVec, dspm.linToDb(H / excurNorm), label='dispNorm')
         plt.grid()
         plt.title('Fitted Displacement Error')
         plt.xlabel('frequency [Hz]')

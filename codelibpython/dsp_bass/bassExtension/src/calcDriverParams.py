@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Lumped Parameter Estimation
+Driver Parameter Estimation
 
 @author: G. Howell
 """
@@ -11,7 +11,7 @@ import scipy.signal as sig
 import scipy.optimize as opt
 import matplotlib.pyplot as plt
 
-import codelibpython.maths as math
+import codelibpython.dsp_maths as dspm
         
 def _findPeaks(fVec:np.array,
                Himp:np.array,
@@ -46,7 +46,6 @@ def _findPeaks(fVec:np.array,
     HimpPoly = np.polyval(polyCoeffs, fVec)
     
     if (HimpPoly[0] < np.abs(HimpReal[0])):
-        # TODO - work out exactly what this is for
         HimpFit = np.abs(HimpReal - HimpPoly)
     else:
         HimpFit = np.abs(HimpReal)
@@ -57,9 +56,9 @@ def _findPeaks(fVec:np.array,
     
     if plot:
         plt.figure()
-        plt.plot(fVec, HimpReal, label='Z real')
-        plt.plot(fVec, HimpPoly, label='Z poly')
-        plt.plot(fVec, HimpFit, '--', label='Z fitted')
+        plt.plot(fVec, HimpReal, label='real')
+        plt.plot(fVec, HimpPoly, label='polyfit')
+        plt.plot(fVec, HimpFit, '--', label='final')
         plt.plot(fVec[impPeakIdx], HimpFit[impPeakIdx], '*k')
         plt.legend()
         plt.grid()
@@ -264,8 +263,7 @@ def _impedanceModel(params:np.array,
             
     return Himp
         
-def _costFunction(self,
-                  params:np.array,
+def _costFunction(params:np.array,
                   Himp:np.array,
                   sVec:np.array,
                   wVec:np.array,
@@ -299,7 +297,7 @@ def _costFunction(self,
     """
     
     # model impedance
-    HimpFit = self._impedanceModel(params, sVec, wVec, Re, modelType)
+    HimpFit = _impedanceModel(params, sVec, wVec, Re, modelType)
     
     # square summed impedance error
     errVec = np.abs(HimpFit - Himp) / np.abs(Himp); 
@@ -370,8 +368,8 @@ def _parameterOptimisation(estimatedParams:dict,
         
         # calculate final impedance curve      
         fVec = finalParams['fVec']
-        HimpEst = _impedanceModel(estParams)
-        HimpFit = _impedanceModel(optData[0])
+        HimpEst = _impedanceModel(estParams, finalParams['sVec'], finalParams['wVec'], finalParams['Re'], modelType)
+        HimpFit = _impedanceModel(optData[0], finalParams['sVec'], finalParams['wVec'], finalParams['Re'], modelType)
         
         # plot estimated impedance vs. fitted
         plt.figure()
@@ -448,7 +446,7 @@ def _calcAlignment(finalParams:dict,
     if plot:
         fVec = finalParams['fVec']
         plt.figure()
-        plt.semilogx(fVec, 20*np.log10(Halign))
+        plt.semilogx(fVec, dspm.linToDb(Halign))
         plt.grid()
         plt.title('Alignment')
         plt.ylabel('magnitude [dB]')
@@ -515,7 +513,7 @@ def _calcDisplacement(finalParams:dict,
         
     return finalParams
         
-def calcLumpedParams(fVec:np.array,
+def calcDriverParams(fVec:np.array,
                      Himp:np.array,
                      voltsPeakAmp:float,
                      Bl:float,
@@ -523,9 +521,9 @@ def calcLumpedParams(fVec:np.array,
                      Re:float=None,
                      modelType:str='sealed',
                      plot:bool=False):
-    """ Calculate Lumped Parameters
+    """ Calculate Driver Parameters
     
-    Calculates the lumped parameters.
+    Calculates the driver parameters.
 
     Parameters
     ----------
@@ -548,7 +546,7 @@ def calcLumpedParams(fVec:np.array,
     Returns
     -------
     finalParams: dict
-        Dictionary of all the final lumped parameter values.
+        Dictionary of all the calculated driver parameter values.
     """
     
     # if no Re value is input pick it from the lowest value of the measures impedance
@@ -558,18 +556,26 @@ def calcLumpedParams(fVec:np.array,
         print(f'\t Re = {Re}')
         print(f'\t Freq = {fVec[0]}')
     
-    # process
+    # find the impedance peak
     impPeakIdx = _findPeaks(fVec, Himp, plot)
+    
+    # estimate the initial driver parameters for optimisation
     estimatedParams, finalParams = _parameterEstimation(fVec, Himp, impPeakIdx, Re, plot)
+    
+    # optimise the driver parameters
     finalParams =_parameterOptimisation(estimatedParams, finalParams, modelType, plot)
+    
+    # caclulate alignment
     Halign, finalParams =_calcAlignment(finalParams, plot)
+    
+    # calculate displacement
     finalParams = _calcDisplacement(finalParams, Halign, voltsPeakAmp, Bl, Mmc, plot)
     
     return finalParams
 
 if __name__ == "__main__":
     
-    print('\nCalculating Lumped Parameters\n')
+    print('\nCalculating Driver Parameters\n')
     
     # measured params
     voltsPeakAmp = 17.9 * np.sqrt(2)
@@ -578,10 +584,12 @@ if __name__ == "__main__":
     Re = 4.7
     
     # load data impedance data from file
-    impedData = np.load("impedTestData/01_ALB_IMP_DEQ_reformatted.npz", allow_pickle=True)
+    impedData = np.load("../impedTestData/01_ALB_IMP_DEQ_reformatted.npz", allow_pickle=True)
     
     # create parameter for a closed box
-    driverParams = calcLumpedParams(impedData['f'], impedData['Z'], voltsPeakAmp, Bl, Mmc, Re=Re, plot=True)
+    driverParams = calcDriverParams(impedData['f'], impedData['Z'], voltsPeakAmp, Bl, Mmc, Re=Re, plot=True)
+    
+    plt.show()
     
     print('\nFinished\n')
     

@@ -24,7 +24,7 @@ def linToDb(linVal:'float | np.array'):
         dB output
     """ 
 
-    return 20*np.log10(abs(linVal))
+    return 20*np.log10(np.abs(linVal))
 
 def dbToLin(dbVal:'float | np.array'):
     """ dB To Linear
