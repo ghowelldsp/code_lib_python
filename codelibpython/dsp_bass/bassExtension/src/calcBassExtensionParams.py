@@ -394,7 +394,7 @@ def _calcMaxRmsXeqFilter(fVec:np.array,
 
         fig.tight_layout()  # otherwise the right y-label is slightly clipped
     
-    return fcHigh
+    return bExtHigh, aExtHigh, fcHigh
     
 def _rmsThreshold(bExtLo,
                   aExtLo,
@@ -407,7 +407,6 @@ def _rmsThreshold(bExtLo,
                   maxDispLimit,
                   maxVoltLimit,
                   exc2mmGain,
-                  poleExt,
                   fVec,
                   fs,
                   plot):
@@ -418,7 +417,8 @@ def _rmsThreshold(bExtLo,
     Hind = sig.freqz(bInd, aInd, fVec, fs=fs)[1]
     
     # finds 2 index values of the frequency vector that are closest to 20Hz 
-    fVecIdx = (fVec[fVec >= 20])[0:2]
+    # TODO - this was originally 2 points, not sure why
+    fVecIdx = np.where(fVec >= 20)[0][0]
     
     # array of amplitude values
     nAmps = 2000
@@ -435,8 +435,8 @@ def _rmsThreshold(bExtLo,
         maxVolts = np.max(np.abs(HextLoRms[fVecIdx] * Hind[fVecIdx] * voltsPeakAmp)) * amps[i+1]
         
         # check mm and volt limits
-        if ((maxDisp <= maxDispLimit) and (maxVolts <= maxVoltLimit)):
-            threshold = amps(i-1)
+        if ((maxDisp > maxDispLimit) or (maxVolts > maxVoltLimit)):
+            threshold = amps[i-1]
             break
 
     # determine gradient and y intercept
@@ -444,6 +444,7 @@ def _rmsThreshold(bExtLo,
     b = 1 - m
     
     # figure out gain of an equivalent HPF with the same poles as poleExt
+    poleExt = np.roots(aExtLo)[0]
     kLow = np.abs(poleExt)
     kLowInv = 1 / kLow;
     
@@ -451,25 +452,25 @@ def _rmsThreshold(bExtLo,
         
         y = m*amps + b;
 
-        plt.figure('Name', 'DEQ THRES: Input vs Output Levels', 'NumberTitle', 'off', 'windowstyle', 'docked')
-        plt.plot(amps, y)
+        plt.figure()
+        plt.plot(dspm.linToDb(amps), y)
         plt.grid()
         plt.xlabel('RMS Amplitude [dB FS]')
         plt.ylabel('Low (0) -> High (1) RMS DEQ Filter')
         plt.title('RMS Ampitude / Filter Type Determination')
         plt.ylim(0, 1)
     
-def calcBassExtensionFilters(driverParams:dict,
-                             fcLowExt:float,
-                             qExt:float,
-                             maxMmPeak:float,
-                             maxVoltPeak:float,
-                             attackTime:float,
-                             releaseTime:float,
-                             rmsAttackTime:float,
-                             fs:float,
-                             dropIeq:bool=False,
-                             plot:bool=False):
+def calcBassExtensionParams(driverParams:dict,
+                            fcLowExt:float,
+                            qExt:float,
+                            maxMmPeak:float,
+                            maxVoltPeak:float,
+                            attackTime:float,
+                            releaseTime:float,
+                            rmsAttackTime:float,
+                            fs:float,
+                            dropIeq:bool=False,
+                            plot:bool=False):
 
     # TODO - fix once tested    
     # if plot:
@@ -492,23 +493,26 @@ def calcBassExtensionFilters(driverParams:dict,
     bInd, aInd = _createInductanceFlt(bShelf, aShelf, fs, fVec, plot=False)
     
     # create extension filter
-    bExt, aExt = _createExtensionFlt(aHp, fcLowExt, qExt, fs, fVec, plot=False)
+    bExtLow, aExtLow = _createExtensionFlt(aHp, fcLowExt, qExt, fs, fVec, plot=False)
     
     # TODO - impliment drop inductance filter
     
     # calculate displacement filter
-    sosExcur, gain, norm2mmGain = cdf.calcDisplacementFilter(driverParams['fVec'], driverParams['Hdisp'], driverParams['w0'],
+    sosExcur, gain, norm2mmGain, Hdisp = cdf.calcDisplacementFilter(driverParams['fVec'], driverParams['Hdisp'], driverParams['w0'],
                                                              driverParams['HdispGain'], driverParams['HdispMm'], filterType='lppeq',
-                                                             enclosureType='sealed', fs=fs, plot=True)
+                                                             enclosureType='sealed', fs=fs, plot=False)
     
     # calculate excursion filter when for a maximum rms input level
-    _calcMaxRmsXeqFilter(fVec, sosExcur, gain, norm2mmGain, bInd, aInd, aHp, fcLowExt, qExt, driverParams['voltsPeakAmp'],
-                         maxMmPeak, maxVoltPeak, fs, plotData=True)
+    # TODO - tidy
+    bExtHigh, aExtHigh, fcHigh = _calcMaxRmsXeqFilter(
+        fVec, sosExcur, gain, norm2mmGain, bInd, aInd, aHp, fcLowExt, qExt, driverParams['voltsPeakAmp'],
+                         maxMmPeak, maxVoltPeak, fs, plotData=False)
     
     # TODO calculate attack release coefficients
     
     # calculate rms threshold level
-    # _rmsThreshold()
+    _rmsThreshold(bExtLow, aExtLow, bExtHigh, aExtHigh, bInd, aInd, Hdisp, driverParams['voltsPeakAmp'], maxMmPeak, maxVoltPeak, 
+                  norm2mmGain, fVec, fs, plot=True)
                 
     if plot:
         plt.show()
@@ -554,8 +558,8 @@ if __name__ == "__main__":
     }
     
     # run model
-    calcBassExtensionFilters(driverParams, fcLowExt, qExt, maxMmPeak, maxVoltPeak, attackTime, releaseTime, 
-                             rmsAttackTime, fs)
+    calcBassExtensionParams(driverParams, fcLowExt, qExt, maxMmPeak, maxVoltPeak, attackTime, releaseTime, 
+                            rmsAttackTime, fs)
     
     plt.show()
     

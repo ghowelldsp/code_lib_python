@@ -191,10 +191,10 @@ def calcDisplacementFilter(fVec,
         case _:
             raise ValueError('Error: invalid enclosureType')
 
+    # calculate overall transfer function
+    Hdisp = gain * sig.sosfreqz(sos, fVec, fs=fs)[1]
+
     if plot:
-        
-        # calculate overall transfer function
-        H = gain * sig.sosfreqz(sos, fVec, fs=fs)[1]
     
         # calculate individual transfer functions of lp and peq filters used
         Hlp = sig.sosfreqz(sos[0,:], fVec, fs=fs)[1]
@@ -238,7 +238,7 @@ def calcDisplacementFilter(fVec,
         plt.ylabel('magnitude [dB]')
         plt.xlim(fVec[0], fVec[-1])
         
-    return sos, gain, norm2mmGain
+    return sos, gain, norm2mmGain, Hdisp
     
 # if __name__ == "__main__":
     

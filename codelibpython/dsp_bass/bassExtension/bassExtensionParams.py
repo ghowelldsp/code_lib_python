@@ -55,7 +55,7 @@ class bassExtensionParams():
         impedData = np.load(filename, allow_pickle=True)
         
         # calculate parameters
-        self.driverParams = cdp.calcLumpedParams(impedData['f'], impedData['Z'], voltsPeakAmp, Bl, Mmc, Re, plot=plot)
+        self.driverParams = cdp.calcDriverParams(impedData['f'], impedData['Z'], voltsPeakAmp, Bl, Mmc, Re, plot=plot)
         
         if writeToFile:
             # TODO
