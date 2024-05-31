@@ -469,7 +469,7 @@ def calcBassExtensionParams(driverParams:dict,
                             releaseTime:float,
                             rmsAttackTime:float,
                             fs:float,
-                            dropIeq:bool=False,
+                            dropInd:bool=False,
                             plot:bool=False):
 
     # TODO - fix once tested    
@@ -514,8 +514,24 @@ def calcBassExtensionParams(driverParams:dict,
     _rmsThreshold(bExtLow, aExtLow, bExtHigh, aExtHigh, bInd, aInd, Hdisp, driverParams['voltsPeakAmp'], maxMmPeak, maxVoltPeak, 
                   norm2mmGain, fVec, fs, plot=True)
                 
+    # create all data
+    bassExtensionParams = {
+        'rmsAlpha' : 
+        'rmsGainDb' : 
+        'rmsYInter' :
+        'smoothAttackCoeff' : 
+        'smoothReleaseCoeff' :
+        'poleHigh' :
+        'poleLow' :
+        'sosExt' :
+        'sosInd' :
+        'fs' : 
+    }            
+    
     if plot:
         plt.show()
+        
+    return bassExtensionParams
     
 if __name__ == "__main__":
     
@@ -524,22 +540,15 @@ if __name__ == "__main__":
     # general parameters
     fs = 48000
     
-    # measured params 
-    # TODO - not needed remove
-    # VoltsPeakAmp = 17.9 * np.sqrt(2)
-    # Bl = 5.184
-    # Mmc = 0.010
-    # Re = 4.7
-    
     # tuning parameters
     fcLowExt = 40
     qExt = 0.65
     maxMmPeak = 1.4
-    maxVoltPeak = 20 # TODO - needs implimenting
+    maxVoltPeak = 20
     attackTime = 0.001
     releaseTime = 0.100
     rmsAttackTime = 0.005
-    dropIeq = False
+    dropInd = False
     
     # TODO - temp for testing form matlab file
     from pymatreader import read_mat

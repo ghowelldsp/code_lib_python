@@ -6,9 +6,9 @@
 
 import numpy as np
 
-def timeToCoeff(time:float,
-                fs:int):
-    """ Time To Coeff
+def timeToCoeffConst(time:float,
+                     fs:int):
+    """ Time To Coefficient Constant
 
     Parameters
     ----------
@@ -37,5 +37,5 @@ if __name__ == "__main__":
     time = 0.1
     fs = 48000
     
-    coeff, oneMinusCoeff = timeToCoeff(time, fs)
+    coeff, oneMinusCoeff = timeToCoeffConst(time, fs)
     

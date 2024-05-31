@@ -209,7 +209,7 @@ class bassExtension:
         fig.suptitle('Input vs. Output', fontsize=14)
         
         # plot inductance
-        axs[0,0].semilogx(tVec,  dspm.linToDb(Hind), label='inductance')
+        axs[0,0].semilogx(fVec,  dspm.linToDb(Hind), label='inductance')
         axs[0,0].set_title('Filters')
 
         for i in range(nChannels):

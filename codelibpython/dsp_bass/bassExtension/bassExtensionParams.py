@@ -8,19 +8,38 @@ Bass Extension
 
 import numpy as np
 
-import src.calcDriverParams as cdp
+import src
 
 class bassExtensionParams():
     
-    def __init__(self):
-        
-        pass
+    def __init__(self,
+                 fs,
+                 dtype:np.dtype=np.float32):
+        """ Init
+
+        """
 
     def checkImpedance(self,
-                       filename:str):
+                       filename:str,
+                       plot:bool=True,
+                       saveData:bool=False):
+        """ Check Impedance
+
+        Parameters
+        ----------
+        filename : str
+            Filename of the impedance file to be loaded. Can be either .mat or .npz file types.
+        plot : bool, optional
+            Plot impedance data. Defaults to True.
+        saveData : bool, optional
+            Saves the impedance data to a .npz file. Defaults to False.
+        dtype : np.dtype, optional
+            Datatype. Defaults to np.float32.
+        """
         
-        # TODO implement
-        pass
+        self.impedanceData = src.checkImpedance(filename, plot, saveData, self.dtype)
+        
+        # TODO - move the save data feature to this class
         
     def calcDriverParams(self,
                          filename:str,
@@ -29,7 +48,7 @@ class bassExtensionParams():
                          Mmc:float,
                          Re:float=None,
                          plot:bool=False,
-                         writeToFile:bool=False):
+                         saveData:bool=False):
         """ Calculate Driver Parameters
 
         Parameters
@@ -47,33 +66,58 @@ class bassExtensionParams():
             lowest frequency point from the measured impedance.
         plot : bool, optional
             Plot data. Defaults to False.
-        writeToFile : bool
-            Write data to file for usage in calculate tuning parameters method.
+        saveData : bool
+            Save data to file for usage in calculate tuning parameters method.
         """
+        
+        # TODO - add a check to see if impedance data has been created or if we need to load from a file.
         
         # import data
         impedData = np.load(filename, allow_pickle=True)
         
         # calculate parameters
-        self.driverParams = cdp.calcDriverParams(impedData['f'], impedData['Z'], voltsPeakAmp, Bl, Mmc, Re, plot=plot)
+        self.driverParams = src.calcDriverParams(impedData['fVec'], impedData['Himp'], voltsPeakAmp, Bl, Mmc, Re, plot=plot)
         
-        if writeToFile:
+        if saveData:
             # TODO
             pass
         
-    def calcBassExtensionParams():
+    def calcBassExtensionParams(self,
+                                fcLowExt:float,
+                                qExt:float,
+                                maxMmPeak:float,
+                                maxVoltPeak:float,
+                                attackTime:float,
+                                releaseTime:float,
+                                rmsAttackTime:float,
+                                dropInd:bool=False,
+                                plot:bool=False,
+                                saveData:bool=False):
 
-        # TODO - implement
-        pass
-    
+        # TODO - import data
+        # impedData = np.load(filename, allow_pickle=True)
+        
+        # calculate bass extension params
+        self.bassExtensionParams = src.calcBassExtensionParams(self.driverParams, fcLowExt, qExt, maxMmPeak, 
+                                                               maxVoltPeak, attackTime, releaseTime, rmsAttackTime,
+                                                               self.fs, dropInd, plot)
+        
+        if saveData:
+            # TODO
+            pass
+        
 if __name__ == "__main__":
     
     print('\nCalculating Bass Extension Parameters\n')
     
-    # TODO - run check impedance method
+    # general params
+    fs = 48000
+    plot = True
     
     # initialise bass extension
-    bassExt = bassExtensionParams()
+    bassExt = bassExtensionParams(fs)
+    
+    # TODO - run check impedance method
     
     # measured params
     impFile = "impedTestData/01_ALB_IMP_DEQ_reformatted.npz"
@@ -83,9 +127,20 @@ if __name__ == "__main__":
     Re = 4.7
     
     # calc driver parameters
-    bassExt.calcDriverParams(impFile, voltsPeakAmp, Bl, Mmc, Re, plot=True, writeToFile=False)
+    bassExt.calcDriverParams(impFile, voltsPeakAmp, Bl, Mmc, Re, plot=plot, writeToFile=False)
+    
+    # tuning parameters
+    fcLowExt = 40
+    qExt = 0.65
+    maxMmPeak = 1.4
+    maxVoltPeak = 20
+    attackTime = 0.001
+    releaseTime = 0.100
+    rmsAttackTime = 0.005
+    dropInd = False
     
     # calculate bass extension parameters
-    bassExt.calcBassExtensionParams()
+    bassExt.calcBassExtensionParams(fcLowExt, fcLowExt, qExt, maxMmPeak, maxVoltPeak, attackTime, releaseTime, 
+                                    rmsAttackTime, dropInd, plot)
 
     print('\nFinished\n')
