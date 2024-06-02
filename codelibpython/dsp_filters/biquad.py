@@ -9,12 +9,12 @@ from scipy import signal as sig
 import numpy as np
 import matplotlib.pyplot as plt
 
-import codelibpython.maths as dspm
+import codelibpython.dsp_maths as dspm
 import codelibpython.dsp_utils as dspu
 
 ## BIQUAD CLASS #######################################################################################################
 
-class biquadFilter:
+class biquad:
     """
     Biquad Filter
     
@@ -24,6 +24,7 @@ class biquadFilter:
     def __init__(self, 
                  fs:int,
                  nChannels:int,
+                 nStages:int,
                  sos:np.array=None,
                  modelType:str='scipy',
                  dtype:np.dtype=np.float32):
@@ -45,10 +46,17 @@ class biquadFilter:
         
         self.fs = fs
         self.nChannels = nChannels
-        if sos != None:
-            self.setCoeffs(sos)
+        self.nStages = nStages
         self.modelType = modelType
         self.dtype = dtype
+        if np.any(sos != None):
+            self.setCoeffs(sos)
+            
+        # create empty delay registers to enable block processing
+        if (modelType == 'scipy') or (modelType == 'df2') or (modelType == 'df2t'):
+            self.delayReg = np.zeros((nStages, nChannels, 2), dtype)
+        elif modelType == 'df1':
+            self.delayReg = np.zeros((nStages, nChannels, 4), dtype)
         
     def createCoeffs(self, 
                      order:np.array, 
@@ -88,18 +96,11 @@ class biquadFilter:
         """
         
         assert sos.ndim == 2, 'SOS matrix is not the correct number of dimensions'
+        assert sos.shape[0] == self.nStages, 'SOS matrix number of stages is less than init'
         assert sos.shape[1] == 6, 'SOS matrix does not contain the correct number of coefficients'
         
         # set the coefficients
-        self.sos = sos.astype(dtype)
-        
-        # create empty delay registers to enable block processing
-        nStages = sos.shape[0]
-        modelType = self.modelType
-        if (modelType == 'scipy') or (modelType == 'df2') or (modelType == 'df2t'):
-            self.delayReg = np.zeros((nStages, nChannels, 2), self.dtype)
-        elif modelType == 'df1':
-            self.delayReg = np.zeros((nStages, nChannels, 4), self.dtype)
+        self.sos = sos.astype(self.dtype)
         
     def process(self, 
                 x:np.array):
@@ -123,10 +124,10 @@ class biquadFilter:
         
         # convert to specified datatype
         x.astype(self.dtype)
-        y = np.zeros(x.shape, dtype=dtype)
+        y = np.zeros(x.shape, dtype=self.dtype)
         
         # get parameters
-        nChannels, nSamples = x.shape
+        _, nSamples = x.shape
         nStages = self.sos.shape[0]
         
         if (self.modelType == "scipy"):
@@ -303,7 +304,7 @@ if __name__ == "__main__":
     x, t = dspu.createToneSignals(amp, freq, N, nChannels, fs, dtype)
         
     # initalise biquad
-    biquad = biquadFilter(fs, nChannels, modelType='df1', dtype=dtype)
+    biquad = biquad(fs, nChannels, nStages=1, modelType='df1', dtype=dtype)
     
     # create coefficients
     biquad.createCoeffs(order=2, fc=1000, fltType='low')

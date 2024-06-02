@@ -64,7 +64,7 @@ if __name__ == "__main__":
     f = [1000, 2000]
     amp = [1.0, 1.0]
     
-    x, t = createToneSignals(amp, f, N, nSignals, fs);
+    x, t = createToneSignals(amp, f, N, nSignals, fs)
     
     # plot signals
     plt.plot(t, x.T)
