@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import scipy.signal._filter_design as fd
 
 import codelibpython.dsp_maths as dspm
-import calcDisplacementFilter as cdf
+import codelibpython.dsp_bass.bassExtension.src as src
 
 def _calcAlignmentFlt(alignB:np.array,
                       alignA:np.array,
@@ -440,17 +440,19 @@ def _rmsThreshold(bExtLo,
             break
 
     # determine gradient and y intercept
-    m = (1 - 0)/(1 - threshold)
-    b = 1 - m
+    grad = (1 - 0)/(1 - threshold)
+    yInt = 1 - grad
     
     # figure out gain of an equivalent HPF with the same poles as poleExt
-    poleExt = np.roots(aExtLo)[0]
-    kLow = np.abs(poleExt)
-    kLowInv = 1 / kLow;
+    poleExtLow = np.roots(aExtLo)[0]
+    poleExtHigh = np.roots(aExtHi)[0]
+    kLow = np.abs(poleExtLow)
+    kLowInv = 1 / kLow
     
     if plot:
         
-        y = m*amps + b;
+        # calculate output
+        y = grad * amps + yInt
 
         plt.figure()
         plt.plot(dspm.linToDb(amps), y)
@@ -459,73 +461,81 @@ def _rmsThreshold(bExtLo,
         plt.ylabel('Low (0) -> High (1) RMS DEQ Filter')
         plt.title('RMS Ampitude / Filter Type Determination')
         plt.ylim(0, 1)
-    
+        
+    return grad, yInt, poleExtLow, poleExtHigh, kLow, kLowInv
+
 def calcBassExtensionParams(driverParams:dict,
                             fcLowExt:float,
                             qExt:float,
                             maxMmPeak:float,
                             maxVoltPeak:float,
-                            attackTime:float,
-                            releaseTime:float,
+                            smoothAttackTime:float,
+                            smoothReleaseTime:float,
                             rmsAttackTime:float,
                             fs:float,
                             dropInd:bool=False,
                             plot:bool=False):
 
-    # TODO - fix once tested    
-    # if plot:
-    if True:
-        # create frequency vector
-        # TODO - create log vector
-        fVec = np.linspace(10, fs/2, 10000)
-    else:
-        fVec = None
-        
-    # TODO - update plot - True, etc
+
+    # TODO - create log vector
+    fVec = np.linspace(10, fs/2, 10000)
     
     # calculate alignment
-    bAlignZ, aAlignZ = _calcAlignmentFlt(driverParams['bAlign'], driverParams['aAlign'], fs, fVec, plot=False)
+    bAlignZ, aAlignZ = _calcAlignmentFlt(driverParams['bAlign'], driverParams['aAlign'], fs, fVec, plot=plot)
     
     # calculate highpass shelf filter (used to create inductance filter)
-    bShelf, aShelf, bHp, aHp = _calcHpShelfFlt(bAlignZ, aAlignZ, fs, fVec, plot=False)
+    bShelf, aShelf, bHp, aHp = _calcHpShelfFlt(bAlignZ, aAlignZ, fs, fVec, plot=plot)
     
     # create inducatance filter
-    bInd, aInd = _createInductanceFlt(bShelf, aShelf, fs, fVec, plot=False)
+    bInd, aInd = _createInductanceFlt(bShelf, aShelf, fs, fVec, plot=plot)
     
     # create extension filter
-    bExtLow, aExtLow = _createExtensionFlt(aHp, fcLowExt, qExt, fs, fVec, plot=False)
+    bExtLow, aExtLow = _createExtensionFlt(aHp, fcLowExt, qExt, fs, fVec, plot=plot)
     
     # TODO - impliment drop inductance filter
     
     # calculate displacement filter
-    sosExcur, gain, norm2mmGain, Hdisp = cdf.calcDisplacementFilter(driverParams['fVec'], driverParams['Hdisp'], driverParams['w0'],
-                                                             driverParams['HdispGain'], driverParams['HdispMm'], filterType='lppeq',
-                                                             enclosureType='sealed', fs=fs, plot=False)
+    sosDisp, gain, norm2mmGain, Hdisp = src.calcDisplacementFilter(driverParams['fVec'], driverParams['Hdisp'], driverParams['w0'],
+                                                             driverParams['dispGain'], driverParams['HdispMm'], filterType='lppeq',
+                                                             enclosureType='sealed', fs=fs, plot=plot)
     
     # calculate excursion filter when for a maximum rms input level
     # TODO - tidy
     bExtHigh, aExtHigh, fcHigh = _calcMaxRmsXeqFilter(
-        fVec, sosExcur, gain, norm2mmGain, bInd, aInd, aHp, fcLowExt, qExt, driverParams['voltsPeakAmp'],
-                         maxMmPeak, maxVoltPeak, fs, plotData=False)
-    
-    # TODO calculate attack release coefficients
+        fVec, sosDisp, gain, norm2mmGain, bInd, aInd, aHp, fcLowExt, qExt, driverParams['voltsPeakAmp'],
+                         maxMmPeak, maxVoltPeak, fs, plotData=plot)
     
     # calculate rms threshold level
-    _rmsThreshold(bExtLow, aExtLow, bExtHigh, aExtHigh, bInd, aInd, Hdisp, driverParams['voltsPeakAmp'], maxMmPeak, maxVoltPeak, 
-                  norm2mmGain, fVec, fs, plot=True)
+    rmsGrad, rmsYInter, poleExtLow, poleExtHigh, kLow, kLowInv = _rmsThreshold(bExtLow, aExtLow, bExtHigh, aExtHigh, bInd, aInd, Hdisp, driverParams['voltsPeakAmp'], maxMmPeak, maxVoltPeak, 
+                  norm2mmGain, fVec, fs, plot=plot)
+    
+    # calculate attack release coefficients    
+    rmsAttackCoeff = dspm.timeToCoeffConst(rmsAttackTime, fs)
+    smoothAttackCoeff = dspm.timeToCoeffConst(smoothAttackTime, fs)
+    smoothReleaseCoeff = dspm.timeToCoeffConst(smoothReleaseTime, fs)
+    
+    # create sos matricies
+    # TODO - should this happen on the function output
+    sosExtLow = np.array(np.concatenate([bExtLow, aExtLow]), ndmin=2)
+    sosExtHigh = np.array(np.concatenate([bExtHigh, aExtHigh]), ndmin=2)
+    sosInd = np.array(np.concatenate([bInd, aInd]), ndmin=2)
                 
     # create all data
     bassExtensionParams = {
-        'rmsAlpha' : 
-        'rmsGainDb' : 
-        'rmsYInter' :
-        'smoothAttackCoeff' : 
-        'smoothReleaseCoeff' :
-        'poleHigh' :
-        'poleLow' :
-        'sosExt' :
-        'sosInd' :
-        'fs' : 
+        'rmsAttackCoeff' : rmsAttackCoeff,
+        'rmsGain' : np.sqrt(2.0),
+        'rmsGrad' : rmsGrad,
+        'rmsYInter' : rmsYInter,
+        'smoothAttackCoeff' : smoothAttackCoeff,
+        'smoothReleaseCoeff' : smoothReleaseCoeff,
+        'poleHigh' : poleExtHigh,
+        'poleLow' : poleExtLow,
+        'sosExtLow' : sosExtLow,
+        'sosExtHigh' : sosExtHigh,
+        'sosInd' : sosInd,
+        'fs' : fs,
+        'kLow' : kLow,
+        'kLowInv' : kLowInv
     }            
     
     if plot:
@@ -552,7 +562,7 @@ if __name__ == "__main__":
     
     # TODO - temp for testing form matlab file
     from pymatreader import read_mat
-    data = read_mat('../impedTestData/01_ALB_IMP_DEQ_reformatted_lp.mat')['impDataLumpParams']
+    data = read_mat('../impedTestData_old/01_ALB_IMP_DEQ_reformatted_lp.mat')['impDataLumpParams']
     
     # TODO - check if all these params are needed
     driverParams = {
@@ -561,14 +571,14 @@ if __name__ == "__main__":
         'bAlign' : data['deqParams']['alignment']['num2'],
         'aAlign' : data['deqParams']['alignment']['den2'],
         'Hdisp' : data['deqParams']['alignment']['excursion'],
-        'HdispGain' : data['fitImpData']['excurGain'],
+        'dispGain' : data['fitImpData']['excurGain'],
         'HdispMm' : data['fitImpData']['excurMm'],
         'voltsPeakAmp' : data['klipParams']['VoltsPeakAmp']
     }
     
     # run model
     calcBassExtensionParams(driverParams, fcLowExt, qExt, maxMmPeak, maxVoltPeak, attackTime, releaseTime, 
-                            rmsAttackTime, fs)
+                            rmsAttackTime, fs, plot=True)
     
     plt.show()
     

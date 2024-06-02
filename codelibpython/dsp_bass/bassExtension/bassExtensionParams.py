@@ -7,16 +7,19 @@ Bass Extension
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
+from pymatreader import read_mat
+import os
 
-import src
+import codelibpython.dsp_bass.bassExtension.src as src
 
 class bassExtensionParams():
     
-    def __init__(self,
-                 fs,
-                 dtype:np.dtype=np.float32):
+    def __init__(self):
         """ Init
-
+        
+        Parameters
+        ----------
         """
 
     def checkImpedance(self,
@@ -28,18 +31,38 @@ class bassExtensionParams():
         Parameters
         ----------
         filename : str
-            Filename of the impedance file to be loaded. Can be either .mat or .npz file types.
+            Filename of the impedance file to be loaded. Can be either .mat or .npz file types and the name should
+            include the file extension.
         plot : bool, optional
             Plot impedance data. Defaults to True.
         saveData : bool, optional
-            Saves the impedance data to a .npz file. Defaults to False.
-        dtype : np.dtype, optional
-            Datatype. Defaults to np.float32.
+            Saves the impedance data to a .npz file, appending the original file name with '_impedData'. Defaults to 
+            False.
         """
         
-        self.impedanceData = src.checkImpedance(filename, plot, saveData, self.dtype)
+        # get the file extension
+        fileName, fileExt = os.path.splitext(filename)
         
-        # TODO - move the save data feature to this class
+        # load the data from the file
+        try:
+            # TODO - think about using a dictionary / lambda form so that all the file type do not have to manually be entered
+            # into error function
+            match fileExt:
+                case '.mat':
+                    impedanceData = read_mat(filename)['impedData']
+                case '.npz':
+                    impedanceData = np.load(filename, allow_pickle=True)
+                case _:
+                    raise ValueError('Not a recognised file type. Recognised file types are .mat, .npz')
+        except OSError as err:
+            print("OS Error:", err)
+        
+        # check impedance data
+        self.impedanceData = src.checkImpedance(impedanceData, plot)
+        
+        # save data
+        if saveData:
+            np.save(f'{fileName}_impedData', self.impedanceData)
         
     def calcDriverParams(self,
                          filename:str,
@@ -72,17 +95,23 @@ class bassExtensionParams():
         
         # TODO - add a check to see if impedance data has been created or if we need to load from a file.
         
+        # get the file extension
+        fileName, fileExt = os.path.splitext(filename)
+        assert fileExt == '.npy', 'file not of .npy type'
+        
         # import data
-        impedData = np.load(filename, allow_pickle=True)
+        impedanceData = np.load(f'{fileName}_impedData{fileExt}', allow_pickle=True)
         
         # calculate parameters
-        self.driverParams = src.calcDriverParams(impedData['fVec'], impedData['Himp'], voltsPeakAmp, Bl, Mmc, Re, plot=plot)
+        self.driverParams = src.calcDriverParams(impedanceData.item().get('fVec'), impedanceData.item().get('Himp'), 
+                                                 voltsPeakAmp, Bl, Mmc, Re, plot=plot)
         
+        # save data
         if saveData:
-            # TODO
-            pass
+            np.save(f'{fileName}_driverParams', self.driverParams)
         
     def calcBassExtensionParams(self,
+                                filename:str,
                                 fcLowExt:float,
                                 qExt:float,
                                 maxMmPeak:float,
@@ -90,21 +119,25 @@ class bassExtensionParams():
                                 attackTime:float,
                                 releaseTime:float,
                                 rmsAttackTime:float,
+                                fs:float,
                                 dropInd:bool=False,
                                 plot:bool=False,
                                 saveData:bool=False):
 
+        # get the file extension
+        fileName, fileExt = os.path.splitext(filename)
+        assert fileExt == '.npy', 'file not of .npy type'
+        
         # TODO - import data
         # impedData = np.load(filename, allow_pickle=True)
         
         # calculate bass extension params
         self.bassExtensionParams = src.calcBassExtensionParams(self.driverParams, fcLowExt, qExt, maxMmPeak, 
                                                                maxVoltPeak, attackTime, releaseTime, rmsAttackTime,
-                                                               self.fs, dropInd, plot)
+                                                               fs, dropInd, plot)
         
         if saveData:
-            # TODO
-            pass
+            np.save(f'{fileName}_bassExtParams', self.bassExtensionParams)
         
 if __name__ == "__main__":
     
@@ -112,24 +145,26 @@ if __name__ == "__main__":
     
     # general params
     fs = 48000
-    plot = True
+    plotData = False
     
     # initialise bass extension
-    bassExt = bassExtensionParams(fs)
+    bassExt = bassExtensionParams()
     
-    # TODO - run check impedance method
+    # check impedance
+    bassExt.checkImpedance('impedTestData/01_ALB_IMP_DEQ.npz', plot=plotData, saveData=True)
     
     # measured params
-    impFile = "impedTestData/01_ALB_IMP_DEQ_reformatted.npz"
+    impFile = 'impedTestData/01_ALB_IMP_DEQ.npy'
     voltsPeakAmp = 17.9 * np.sqrt(2)
     Bl = 5.184
     Mmc = 0.010
     Re = 4.7
     
     # calc driver parameters
-    bassExt.calcDriverParams(impFile, voltsPeakAmp, Bl, Mmc, Re, plot=plot, writeToFile=False)
+    bassExt.calcDriverParams(impFile, voltsPeakAmp, Bl, Mmc, Re, plot=plotData, saveData=True)
     
     # tuning parameters
+    driverParamsFile = 'impedTestData/01_ALB_IMP_DEQ.npy'
     fcLowExt = 40
     qExt = 0.65
     maxMmPeak = 1.4
@@ -140,7 +175,7 @@ if __name__ == "__main__":
     dropInd = False
     
     # calculate bass extension parameters
-    bassExt.calcBassExtensionParams(fcLowExt, fcLowExt, qExt, maxMmPeak, maxVoltPeak, attackTime, releaseTime, 
-                                    rmsAttackTime, dropInd, plot)
+    bassExt.calcBassExtensionParams(driverParamsFile, fcLowExt, qExt, maxMmPeak, maxVoltPeak, attackTime, releaseTime,
+                                    rmsAttackTime, fs, dropInd, plot=plotData, saveData=True)
 
     print('\nFinished\n')

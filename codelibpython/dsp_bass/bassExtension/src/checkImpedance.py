@@ -1,4 +1,4 @@
-    #!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 @author: G. Howell
@@ -6,29 +6,26 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pymatreader import read_mat
-import os
 
-def checkImpedance(filename:str, 
-                   plot:bool=True,
-                   saveData:bool=False,
-                   dtype:np.dtype=np.float32):
+def checkImpedance(impedanceData:str, 
+                   plot:bool=True):
     """ Check Impedance
     
-    Enable checking on impedance data via a visual inspection of the impedance curve. Loads the data from either a .mat
-    or .npz file format, which contains the frequency vector, magnitude and phase. A complex impedance vector is 
-    calculated and, if selected, saved to file along with the frequency vector for use in calculating the driver parameters.
+    Enables checking on impedance data via a visual inspection of the impedance curve. Takes in the measured impedance
+    magnitude and phase, including the respective measurement frequency vector. Return the complex impedance data and
+    associated frequency vector.
 
     Parameters
     ----------
-    filename : str
-        Filename of the impedance file to be loaded. Can be either .mat or .npz file types.
+    impedanceData : dict
+        freq : np.array
+            Vector of frequency points of the measured impedance.
+        mag : np. array
+            Measured impedance magnitude vector.
+        phase : np.array
+            Measured impedance phase vector.
     plot : bool, optional
         Plot impedance data. Defaults to True.
-    saveData : bool, optional
-        Saves the impedance data to a .npz file. Defaults to False.
-    dtype : np.dtype, optional
-        Datatype. Defaults to np.float32.
 
     Returns
     -------
@@ -39,28 +36,11 @@ def checkImpedance(filename:str,
             Complex impedance transfer function.
     """
     
-    # get the file extension
-    fileName, fileExt = os.path.splitext(filename)
-    
-    # load the data from the file
-    try:
-        # TODO - think about using a dictionary / lambda form so that all the file type do not have to manually be entered
-        # into error function
-        match fileExt:
-            case '.mat':
-                data = read_mat(filename)['impedData']
-            case '.npz':
-                data = np.load(filename, allow_pickle=True)
-            case _:
-                raise ValueError('Not a recognised file type. Recognised file types are .mat, .npz')
-    except OSError as err:
-        print("OS Error:", err)
-    
     # get data
     try:
-        fVec = np.asarray(data['freq'], dtype=dtype)
-        mag = np.asarray(data['mag'], dtype=dtype)
-        phase = np.asarray(data['phase'], dtype=dtype)
+        fVec = np.asarray(impedanceData['freq'], dtype=np.float64)
+        mag = np.asarray(impedanceData['mag'], dtype=np.float64)
+        phase = np.asarray(impedanceData['phase'], dtype=np.float64)
     except KeyError:
         print('frequency, magnitude or phase vector not present in data')
     
@@ -75,10 +55,6 @@ def checkImpedance(filename:str,
         'fVec' : fVec,
         'Himp' : Himp
     }
-    
-    # save data
-    if saveData:
-        np.savez(fileName, fVec=fVec, Himp=Himp)
     
     if plot:
         plt.figure()

@@ -571,6 +571,12 @@ def calcDriverParams(fVec:np.array,
     # calculate displacement
     finalParams = _calcDisplacement(finalParams, Halign, voltsPeakAmp, Bl, Mmc, plot)
     
+    # add params
+    finalParams['voltsPeakAmp'] = voltsPeakAmp
+    
+    if plot:
+        plt.show()
+    
     return finalParams
 
 if __name__ == "__main__":
