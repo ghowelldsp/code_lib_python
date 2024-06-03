@@ -209,7 +209,7 @@ class bassExtension:
             ySample = self.bqExt.process(xSample[:,np.newaxis])
             
             # process data through inductance filter
-            # ySample = self.bqInd.process(ySample)
+            ySample = self.bqInd.process(ySample)
             
             # assign to output
             y[:,i] = ySample
