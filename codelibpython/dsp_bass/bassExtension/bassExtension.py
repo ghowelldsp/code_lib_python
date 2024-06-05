@@ -156,13 +156,13 @@ class bassExtension:
         poleLoc = self.__weightedSum(poleGain, self.poleHigh, self.poleLow)
         
         # TODO - tidy up
-        a1 = -np.conj(poleLoc) - poleLoc
+        a1 = -2*poleLoc.real
         a2 = np.conj(poleLoc) * poleLoc
         a_1 = poleGain + a1.real
         gain = np.abs(poleLoc) * self.kLowInv
         
-        # a coefficient vector in the form of [a0, a1, a2]
-        aCoeffs = np.array([1.0, a1[0].real, a2[0].real])
+        # a coefficient vector in the form of [a0, a1, a2
+        aCoeffs = np.array([1.0, a1[0], a2[0].real])
         
         return aCoeffs, a_1, gain
     
