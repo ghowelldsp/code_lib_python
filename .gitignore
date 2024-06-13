@@ -4,7 +4,7 @@
 # Project
 .vscode
 data/
-venv/
+.venv/
 __pycache__
 
 # Package Build

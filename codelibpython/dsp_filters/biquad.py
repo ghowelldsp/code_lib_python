@@ -178,32 +178,29 @@ class biquad:
                     self.delayReg[i,:,3] = dy2
                     
                 elif self.modelType == "df2":
-                    
-                    # TODO  - impliment
-                    pass
                 
-                    # # load delay values
-                    # d1 = self.delayReg[j,0,i]
-                    # d2 = self.delayReg[j,1,i]
+                    # load delay values
+                    d1 = self.delayReg[i,:,0]
+                    d2 = self.delayReg[i,:,1]
                     
-                    # # tmp value
-                    # dn = np.zeros([1], dtype=dtype)
+                    # tmp value
+                    dn = np.zeros([1], dtype=dtype)
                 
-                    # for k in range(N):
+                    for j in range(nSamples):
                         
-                    #     xn = xTmp[i,k]
+                        xn = xTmp[:,j]
                         
-                    #     dn = xn + a1 * d1 + a2 * d2
-                    #     yn = b0 * dn + b1 * d1 + b2 * d2
+                        dn = xn + a1 * d1 + a2 * d2
+                        yn = b0 * dn + b1 * d1 + b2 * d2
                         
-                    #     d2 = d1
-                    #     d1 = dn
+                        d2 = d1
+                        d1 = dn
                         
-                    #     y[i,k] = yn
+                        y[:,j] = yn
                     
-                    # # save delay values to object
-                    # self.delayReg[j,0,i] = d1
-                    # self.delayReg[j,1,i] = d2
+                    # save delay values to object
+                    self.delayReg[i,:,0] = d1
+                    self.delayReg[i,:,1] = d2
                 
                 elif self.modelType == "df2t":
                 
@@ -301,7 +298,7 @@ if __name__ == "__main__":
     x, t = dspu.createToneSignals(amp, freq, N, nChannels, fs, dtype)
         
     # initalise biquad
-    biquad = biquad(fs, nChannels, nStages=1, modelType='df1', dtype=dtype)
+    biquad = biquad(fs, nChannels, nStages=1, modelType='df2', dtype=dtype)
     
     # create coefficients
     biquad.createCoeffs(order=2, fc=1000, fltType='low')
