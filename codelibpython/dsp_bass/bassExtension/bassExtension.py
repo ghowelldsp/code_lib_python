@@ -59,7 +59,7 @@ class bassExtension:
         self.poleGain = np.ones([nChannels])
         
         # initialise filters
-        self.bqExt = dspf.biquad(driverParams['fs'], nChannels, 1, driverParams['sosExtHigh'], dtype=dtype)
+        self.bqExt = dspf.biquad(driverParams['fs'], nChannels, 1, driverParams['sosExtHigh'], modelType='df2t', dtype=dtype)
         self.bCoeffsExt = driverParams['sosExtHigh'][0,0:3]
         self.bqInd = dspf.biquad(driverParams['fs'], nChannels, 1, driverParams['sosInd'], dtype=dtype)
         
@@ -281,8 +281,8 @@ if __name__ == "__main__":
     nSignals = 1
     fs = 48000
     N = 1024 * 10
-    f = [65, 2000]
-    amp = [0.01, 1.0]
+    f = [50, 2000]
+    amp = [1.0, 1.0]
     
     # create an input signal
     x, t = dspu.createToneSignals(amp, f, N, nSignals, fs)

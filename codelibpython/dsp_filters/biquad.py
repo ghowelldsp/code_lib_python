@@ -206,31 +206,28 @@ class biquad:
                     # self.delayReg[j,1,i] = d2
                 
                 elif self.modelType == "df2t":
-                    
-                    # TODO  - impliment
-                    pass
                 
-                    # # load delay values
-                    # d1 = self.delayReg[j,0,i]
-                    # d2 = self.delayReg[j,1,i]
+                    # load delay values
+                    d1 = self.delayReg[i,:,0]
+                    d2 = self.delayReg[i,:,1]
                 
-                    # for k in range(N):
+                    for j in range(nSamples):
                         
-                    #     xn = xTmp[i,k]
+                        xn = xTmp[:,j]
                         
-                    #     yn = b0 * xn + d1
+                        yn = b0 * xn + d1
                         
-                    #     d1 = b1 * xn + d2
-                    #     d1 += a1 * yn
+                        d1 = b1 * xn + d2
+                        d1 += a1 * yn
                         
-                    #     d2 = b2 * xn
-                    #     d2 += a2 * yn
+                        d2 = b2 * xn
+                        d2 += a2 * yn
                         
-                    #     y[i,k] = yn
+                        y[:,j] = yn
                     
-                    # # save delay values to object
-                    # self.delayReg[j,0,i] = d1
-                    # self.delayReg[j,1,i] = d2
+                    # save delay values to object
+                    self.delayReg[i,:,0] = d1
+                    self.delayReg[i,:,1] = d2
                     
                 # update input to next stage
                 xTmp = y
