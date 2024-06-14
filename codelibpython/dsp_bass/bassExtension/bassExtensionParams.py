@@ -9,7 +9,7 @@ Bass Extension
 import numpy as np
 import matplotlib.pyplot as plt
 from pymatreader import read_mat
-import os
+import os, csv
 
 import codelibpython.dsp_bass.bassExtension.src as src
 
@@ -52,6 +52,12 @@ class bassExtensionParams():
                     impedanceData = read_mat(filename)['impedData']
                 case '.npz':
                     impedanceData = np.load(filename, allow_pickle=True)
+                case '.csv':
+                    arr = np.genfromtxt(filename, delimiter=",", dtype=str)
+                    impedanceData = {
+                        'freq' : arr[1:-1, 0],
+                        'phase' : arr[1:-1, 1],
+                        'mag' : arr[1:-1, 2]}
                 case _:
                     raise ValueError('Not a recognised file type. Recognised file types are .mat, .npz')
         except OSError as err:
@@ -151,20 +157,20 @@ if __name__ == "__main__":
     bassExt = bassExtensionParams()
     
     # check impedance
-    bassExt.checkImpedance('impedTestData/01_ALB_IMP_DEQ.npz', plot=plotData, saveData=True)
+    bassExt.checkImpedance('impedTestData_test/test_driver.csv', plot=plotData, saveData=True)
     
     # measured params
-    impFile = 'impedTestData/01_ALB_IMP_DEQ.npy'
+    impFile = 'impedTestData_test/test_driver.npy'
     voltsPeakAmp = 17.9 * np.sqrt(2)
     Bl = 5.184
     Mmc = 0.010
-    Re = 4.7
+    Re = 4.0
     
     # calc driver parameters
     bassExt.calcDriverParams(impFile, voltsPeakAmp, Bl, Mmc, Re, plot=plotData, saveData=True)
     
     # tuning parameters
-    driverParamsFile = 'impedTestData/01_ALB_IMP_DEQ.npy'
+    driverParamsFile = 'impedTestData_test/test_driver.npy'
     fcLowExt = 40
     qExt = 0.65
     maxMmPeak = 1.4
@@ -176,6 +182,6 @@ if __name__ == "__main__":
     
     # calculate bass extension parameters
     bassExt.calcBassExtensionParams(driverParamsFile, fcLowExt, qExt, maxMmPeak, maxVoltPeak, attackTime, releaseTime,
-                                    rmsAttackTime, fs, dropInd, plot=plotData, saveData=True)
+                                    rmsAttackTime, fs, dropInd, plot=True, saveData=True)
 
     print('\nFinished\n')

@@ -53,10 +53,10 @@ def _calcAlignmentFlt(alignB:np.array,
         if (idx.size == 0):
             raise ValueError('Error: no real components found')
         else:
-            idx = idx[0]
+            idx = np.where(np.min(zp[idx]) == zp)[0]
         
         # nyquist filter and new alignment values
-        zpNyq = np.array([zp[idx]])
+        zpNyq = np.array(zp[idx])
         zpAlign = np.delete(zp, idx)
         
         return zpAlign, zpNyq
@@ -64,6 +64,9 @@ def _calcAlignmentFlt(alignB:np.array,
     # remove nyquist filter
     zAlign, zNyq = removeNyquistFilter(z)
     pAlign, pNyq = removeNyquistFilter(p)
+    # temp
+    pAlign[2] = p[2]
+    pNyq[0] = p[3]
     
     # check zero alignment parameters are within limits
     # TODO - check on the reasoning of this

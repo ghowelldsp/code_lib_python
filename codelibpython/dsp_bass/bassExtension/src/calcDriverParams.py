@@ -51,15 +51,18 @@ def _findPeaks(fVec:np.array,
         HimpFit = np.abs(HimpReal)
         
     # find the impedance peak
-    impPeakIdx, _ = sig.find_peaks(HimpFit)
+    impPeakIdx, _ = sig.find_peaks(HimpFit, height=HimpReal[0]+2)
     impPeakIdx = impPeakIdx[0]
     
     if plot:
+        print('Find Peaks')
+        print(f'\tPeak Fs: {fVec[impPeakIdx]} Hz')
+        
         plt.figure()
-        plt.plot(fVec, HimpReal, label='real')
-        plt.plot(fVec, HimpPoly, label='polyfit')
-        plt.plot(fVec, HimpFit, '--', label='final')
-        plt.plot(fVec[impPeakIdx], HimpFit[impPeakIdx], '*k')
+        plt.semilogx(fVec, HimpReal, label='real')
+        plt.semilogx(fVec, HimpPoly, label='polyfit')
+        plt.semilogx(fVec, HimpFit, '--', label='final')
+        plt.semilogx(fVec[impPeakIdx], HimpFit[impPeakIdx], '*k')
         plt.legend()
         plt.grid()
         plt.title('Impedance Peak Finder')

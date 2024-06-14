@@ -19,11 +19,11 @@ def checkImpedance(impedanceData:str,
     ----------
     impedanceData : dict
         freq : np.array
-            Vector of frequency points of the measured impedance.
+            Vector of frequency points of the measured impedance [Hz].
         mag : np. array
-            Measured impedance magnitude vector.
+            Measured impedance magnitude vector [Ohms].
         phase : np.array
-            Measured impedance phase vector.
+            Measured impedance phase vector [degrees].
     plot : bool, optional
         Plot impedance data. Defaults to True.
 
@@ -31,9 +31,9 @@ def checkImpedance(impedanceData:str,
     -------
     impedanceData : dict
         fVec : np.array [bins]
-            Frequency vector.
+            Frequency vector [Hz].
         Himp : np.array [bins]
-            Complex impedance transfer function.
+            Complex impedance transfer function [Ohms].
     """
     
     # get data
@@ -60,14 +60,14 @@ def checkImpedance(impedanceData:str,
         plt.figure()
         
         plt.subplot(2,1,1)
-        plt.plot(fVec, mag)
+        plt.semilogx(fVec, mag)
         plt.grid()
         plt.title('Impedance Magnitude')
         plt.ylabel('Mag [Ohm]')
         plt.xlim(fVec[0], fVec[-1])
         
         plt.subplot(2,1,2)
-        plt.plot(fVec, phase)
+        plt.semilogx(fVec, phase)
         plt.grid()
         plt.title('Impedance Phase')
         plt.ylabel('Phase [deg]')
