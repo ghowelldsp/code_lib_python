@@ -17,19 +17,28 @@ def createToneSignals(
         dtype=np.float32):
     """ Create Tone Signals
 
-    Args:
-        amp (np.array):             1D array of amplitudes for each channel. If less than the number of signals then
-                                    the initial values will be used across all signals.
-        f (np.array):               1D array of frequencies for each channel. If less than the number of signals then
-                                    the initial values will be used across all signals.
-        N (int):                    Number of samples.
-        nSignals (int, optional):   Number of signals. Defaults to 1.
-        fs (int, optional):         Sample rate [Hz]. Defaults to 48000.
-        dtype (datatype, optional): Datatype. Defaults to np.float32.
+    Parameters
+    ----------
+    amp : np.array             
+        1D array of amplitudes for each channel. If less than the number of signals then the initial values will be 
+        used across all signals.
+    f : np.array               
+        1D array of frequencies for each channel. If less than the number of signals then the initial values will be 
+        used across all signals.
+    N : int                    
+        Number of samples.
+    nSignals : int   
+        Number of signals. Defaults to 1.
+    fs : int
+        Sample rate [Hz]. Defaults to 48000.
+    dtype : np.dtype
+        Datatype. Defaults to np.float32.
 
     Returns:
-        x (np.array):               2D array of signals. Takes the form [nChannels][nSamples]
-        t (np.array):               1D array of time vector [seconds].
+    x : np.array [channels][samples]
+        2D array of signals.
+    t : np.array
+        1D array of time vector [seconds].
     """
     
     # if either the amplitude or frequency values are a single value, then create array of equal values for all signals
