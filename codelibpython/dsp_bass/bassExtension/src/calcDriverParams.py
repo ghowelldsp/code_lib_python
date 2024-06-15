@@ -128,7 +128,7 @@ def _calcQmc(fVec:np.array,
     if plot:
         plt.figure()
         plt.plot(fVec[fVecLimIdx], np.abs(Himp))
-        plt.plot(np.array([lowFreq, highFreq]), np.array([qThres, qThres]), 'k--')
+        plt.plot(np.array([lowFreq, highFreq]), np.array([qThres, qThres]), 'k')
         plt.grid()
         plt.title('Qmc')
         plt.xlabel('freq [Hz]')
