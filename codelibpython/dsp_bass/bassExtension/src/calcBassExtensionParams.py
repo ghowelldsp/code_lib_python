@@ -43,13 +43,6 @@ def _calcAlignmentFlt(alignB:np.array,
     # determine pole zero locations
     z, p, k = sig.tf2zpk(bZ, aZ)
     
-    # polar plot 
-    # TODO
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-    ax.plot(np.angle(z), np.abs(z), 'o')
-    ax.plot(np.angle(p), np.abs(p), '*')
-    plt.show()
-    
     def removeNyquistFilter(zp):
         
         # reorder in to complex conjugate pairs
@@ -72,9 +65,6 @@ def _calcAlignmentFlt(alignB:np.array,
     # remove nyquist filter
     zAlign, zNyq = removeNyquistFilter(z)
     pAlign, pNyq = removeNyquistFilter(p)
-    # temp
-    # pAlign[2] = p[2]
-    # pNyq[0] = p[3]
     
     # check zero alignment parameters are within limits
     # TODO - check on the reasoning of this
@@ -89,37 +79,41 @@ def _calcAlignmentFlt(alignB:np.array,
     bAlignZ, aAlignZ = sig.zpk2tf(zAlign, pAlign, k=1)
     
     if plot:
-        # # create frequency vector and alignment transfer functions
-        # Hcont = sig.freqs(alignB, alignA, 2*np.pi*fVec)[1]
-        # Hdisc = sig.freqz(bZ, aZ, fVec, fs=fs)[1]
-        # Halign = sig.freqz(bAlignZ, aAlignZ, fVec, fs=fs)[1]
-        # bNyq, aNyq = sig.zpk2tf(zNyq, pNyq, k=1)
-        # HNyq = k * sig.freqz(bNyq, aNyq, fVec, fs=fs)[1]
+        # create frequency vector and alignment transfer functions
+        Hcont = sig.freqs(alignB, alignA, 2*np.pi*fVec)[1]
+        Hdisc = sig.freqz(bZ, aZ, fVec, fs=fs)[1]
+        Halign = sig.freqz(bAlignZ, aAlignZ, fVec, fs=fs)[1]
+        bNyq, aNyq = sig.zpk2tf(zNyq, pNyq, k=1)
+        HNyq = k * sig.freqz(bNyq, aNyq, fVec, fs=fs)[1]
         
         # polar plot 
-        fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-        ax.plot(np.angle(z), np.abs(z), 'o')
-        ax.plot(np.angle(p), np.abs(p), '*')
-        plt.show()
-        # ax.set_rmax(2)
-        # ax.set_rticks([0.5, 1, 1.5, 2])  # Less radial ticks
-        # ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
-        # ax.grid(True)
-        # ax.set_title("A line plot on a polar axis", va='bottom')
+        fig, ax = plt.subplots(1, 3, subplot_kw={'projection': 'polar'})
         
-        # # plot data
-        # plt.figure()
-        # plt.semilogx(fVec, dspm.linToDb(Hcont), label='continuous')
-        # plt.semilogx(fVec, dspm.linToDb(Hdisc), label='discrete')
-        # plt.semilogx(fVec, dspm.linToDb(Halign), label='alignment')
-        # plt.semilogx(fVec, dspm.linToDb(HNyq), label='nyquist')
-        # plt.legend()
-        # plt.grid()
-        # plt.title('Alignment')
-        # plt.xlabel('freq [Hz]')
-        # plt.ylabel('magnitude [dB]')
-        # plt.xlim(fVec[0], fVec[-1])
-        # plt.ylim(-60, 10)
+        ax[0].plot(np.angle(z), np.abs(z), 'o')
+        ax[0].plot(np.angle(p), np.abs(p), '*')
+        ax[0].set_title("Discrete Alignment")
+        
+        ax[1].plot(np.angle(zNyq), np.abs(zNyq), 'o')
+        ax[1].plot(np.angle(pNyq), np.abs(pNyq), '*')
+        ax[1].set_title("Warping Filter")
+        
+        ax[2].plot(np.angle(zAlign), np.abs(zAlign), 'o')
+        ax[2].plot(np.angle(pAlign), np.abs(pAlign), '*')
+        ax[2].set_title("Final Alignment")
+        
+        # plot data
+        plt.figure()
+        plt.semilogx(fVec, dspm.linToDb(Hcont), label='continuous')
+        plt.semilogx(fVec, dspm.linToDb(Hdisc), label='discrete')
+        plt.semilogx(fVec, dspm.linToDb(Halign), label='alignment')
+        plt.semilogx(fVec, dspm.linToDb(HNyq), label='nyquist')
+        plt.legend()
+        plt.grid()
+        plt.title('Alignment')
+        plt.xlabel('freq [Hz]')
+        plt.ylabel('magnitude [dB]')
+        plt.xlim(fVec[0], fVec[-1])
+        plt.ylim(-60, 10)
         
     return bAlignZ, aAlignZ
 

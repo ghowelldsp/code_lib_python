@@ -14,7 +14,7 @@ def createToneSignals(
         N:int, 
         nSignals:int=1, 
         fs:int=48000, 
-        dtype=np.float32):
+        dtype=np.float64):
     """ Create Tone Signals
 
     Parameters

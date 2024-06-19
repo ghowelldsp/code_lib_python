@@ -157,20 +157,20 @@ if __name__ == "__main__":
     bassExt = bassExtensionParams()
     
     # check impedance
-    bassExt.checkImpedance('impedTestData_tymp/impedData_raw.csv', plot=plotData, saveData=True)
+    bassExt.checkImpedance('impedTestData/01_ALB_IMP_DEQ.npz', plot=plotData, saveData=True)
     
     # measured params
-    impFile = 'impedTestData_tymp/impedData_raw.npy'
+    impFile = 'impedTestData/01_ALB_IMP_DEQ.npy'
     voltsPeakAmp = 17.9 * np.sqrt(2)
-    Bl = 1.93
-    Mmc = 0.0014
-    Re = 3.47
+    Bl = 5.184
+    Mmc = 0.010
+    Re = 4.7
     
     # calc driver parameters
-    bassExt.calcDriverParams(impFile, voltsPeakAmp, Bl, Mmc, Re=None, plot=True, saveData=True)
+    bassExt.calcDriverParams(impFile, voltsPeakAmp, Bl, Mmc, Re=None, plot=plotData, saveData=True)
     
     # tuning parameters
-    driverParamsFile = 'impedTestData_tymp/impedData_raw.npy'
+    driverParamsFile = 'impedTestData/01_ALB_IMP_DEQ.npy'
     fcLowExt = 40
     qExt = 0.65
     maxMmPeak = 1.4
@@ -182,6 +182,6 @@ if __name__ == "__main__":
     
     # calculate bass extension parameters
     bassExt.calcBassExtensionParams(driverParamsFile, fcLowExt, qExt, maxMmPeak, maxVoltPeak, attackTime, releaseTime,
-                                    rmsAttackTime, fs, dropInd, plot=True, saveData=True)
+                                    rmsAttackTime, fs, dropInd, plot=plotData, saveData=True)
 
     print('\nFinished\n')

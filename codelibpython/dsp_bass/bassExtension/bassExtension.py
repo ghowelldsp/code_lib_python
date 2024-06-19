@@ -55,7 +55,7 @@ class bassExtension:
         self.dtype = dtype
         
         # initialise local buffers
-        self.msVal = np.ones([nChannels])
+        self.msVal = np.ones([nChannels]) * 2**(-1/2)
         self.poleGain = np.ones([nChannels])
         
         # initialise filters
@@ -188,15 +188,16 @@ class bassExtension:
         assert (nChannels == self.nChannels), 'Number of channels of input data is not the same as used to init module'
         
         y = np.zeros(x.shape)
+        peakLevel = np.zeros(x.shape)
         for i in range(nSamples):
             
             xSample = x[:,i]
             
             # calculate smoothed rms level
-            peakLevel = self.__calcPeakLevel(xSample)
+            peakLevel[:,i] = self.__calcPeakLevel(xSample)
         
             # calculate smoothed pole gain value, 1 = high rms, 0 = low rms
-            poleGain = self.__calcPoleGain(peakLevel)
+            poleGain = self.__calcPoleGain(peakLevel[:,i])
         
             # calculate coefficients
             aCoeffsExt, _, _ = self.__calcCoeffs(poleGain)
@@ -213,12 +214,18 @@ class bassExtension:
             
             # assign to output
             y[:,i] = ySample
+            
+        # create debug params
+        debugParams = {
+            'peakLevel' : peakLevel
+        }
 
-        return y
+        return y, debugParams
     
     def plot(self,
              x:np.array,
-             y:np.array):
+             y:np.array,
+             debugParams:dict=None):
         """ Plotting
         
         Plots the the inductance filter, and the input vs the output data.
@@ -229,6 +236,8 @@ class bassExtension:
             2D array of wet input data. In the format [channels][samples]
         y (np.array):
             2D array of output data. In the format [channels][samples]
+        debugParams : dict
+            Dictionary of debug parameters. Defaults to None.
         """
         
         nChannels, nSamples = x.shape
@@ -243,7 +252,7 @@ class bassExtension:
         fVec, HextHigh = sig.sosfreqz(self.driverParams['sosExtHigh'], worN=4096, fs=self.fs)
         fVec, HextCurr = sig.sosfreqz(self.sosExtCurr, worN=4096, fs=self.fs)
         
-        # plot
+        # plot   
         fig, axs = plt.subplots(nChannels + 1, 1, squeeze=False)
         fig.subplots_adjust(hspace=0.75)
         fig.suptitle('Input vs. Output', fontsize=14)
@@ -268,6 +277,21 @@ class bassExtension:
         
         axs[-1,0].set_xlabel('time [s]')
         
+        if debugParams:
+            fig, axs = plt.subplots(nChannels, len(debugParams), squeeze=False)
+            fig.subplots_adjust(hspace=0.75)
+            fig.suptitle('Debug Params', fontsize=14)
+            
+            for i in range(nChannels):
+                axs[i,0].plot(tVec, debugParams['peakLevel'][i,:])
+                axs[i,0].set_title(f'Peak Level - Ch{i}')
+                axs[i,0].set_ylabel('amplitude')
+                axs[i,0].set_xlim(tVec[0], tVec[-1])
+                axs[i,0].set_ylim(0, 1.5)
+                axs[i,0].grid()
+                
+            axs[-1,0].set_xlabel('time [s]')
+            
         plt.show()
         
 if __name__ == "__main__":
@@ -281,14 +305,15 @@ if __name__ == "__main__":
     nSignals = 1
     fs = 48000
     N = 1024 * 10
-    f = [50, 2000]
-    amp = [1.0, 1.0]
+    f = [100, 2000]
+    amp = [0.1, 1.0]
     
     # create an input signal
     x, t = dspu.createToneSignals(amp, f, N, nSignals, fs)
     
     # load bass extension params
-    bassExtParamsTmp = np.load('impedTestData/01_ALB_IMP_DEQ_bassExtParams.npy', allow_pickle=True)
+    # bassExtParamsTmp = np.load('impedTestData/01_ALB_IMP_DEQ_bassExtParams.npy', allow_pickle=True)
+    bassExtParamsTmp = np.load('impedTestData_tymp/impedData_raw_bassExtParams.npy', allow_pickle=True)
     bassExtParams = {
         'rmsAttackCoeff' : bassExtParamsTmp.item().get('rmsAttackCoeff'),
         'rmsGain' : bassExtParamsTmp.item().get('rmsGain'),
@@ -310,9 +335,9 @@ if __name__ == "__main__":
     bassExt = bassExtension(bassExtParams, nSignals)
     
     # process signal
-    y = bassExt.process(x)
+    y, debugParams = bassExt.process(x)
     
     # plot
-    bassExt.plot(x,y)
+    bassExt.plot(x, y, debugParams)
     
     print('\nFinished\n')
